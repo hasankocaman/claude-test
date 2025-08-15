@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <!-- Log Patterns -->
+        <Property name="CONSOLE_LOG_PATTERN">%highlight{%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n}{FATAL=red blink, ERROR=red, WARN=yellow bold, INFO=green, DEBUG=blue, TRACE=cyan}</Property>
+        <Property name="FILE_LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <Property name="JSON_LOG_PATTERN">{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%-5level","thread":"%t","logger":"%logger{36}","message":"%msg","exception":"%ex"}%n</Property>
+        
+        <!-- Paths -->
+        <Property name="LOG_DIR">target/logs</Property>
+        <Property name="ARCHIVE_DIR">${LOG_DIR}/archive</Property>
+    </Properties>
+    
+    <Appenders>
+        <!-- Console Appender -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${CONSOLE_LOG_PATTERN}"/>
+            <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+        
+        <!-- Main Application Log File -->
+        <RollingFile name="ApplicationFile" fileName="${LOG_DIR}/application.log"
+                     filePattern="${ARCHIVE_DIR}/application-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+        
+        <!-- Test Execution Log -->
+        <RollingFile name="TestExecutionFile" fileName="${LOG_DIR}/test-execution.log"
+                     filePattern="${ARCHIVE_DIR}/test-execution-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Filters>
+                <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+        
+        <!-- Error Log File -->
+        <RollingFile name="ErrorFile" fileName="${LOG_DIR}/errors.log"
+                     filePattern="${ARCHIVE_DIR}/errors-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="50"/>
+        </RollingFile>
+        
+        <!-- Debug Log File (for detailed debugging) -->
+        <RollingFile name="DebugFile" fileName="${LOG_DIR}/debug.log"
+                     filePattern="${ARCHIVE_DIR}/debug-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="25MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+        
+        <!-- WebDriver Log File -->
+        <RollingFile name="WebDriverFile" fileName="${LOG_DIR}/webdriver.log"
+                     filePattern="${ARCHIVE_DIR}/webdriver-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="20MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingFile>
+        
+        <!-- Performance Log File -->
+        <RollingFile name="PerformanceFile" fileName="${LOG_DIR}/performance.log"
+                     filePattern="${ARCHIVE_DIR}/performance-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="15MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+        
+        <!-- JSON Structured Log (for log analysis tools) -->
+        <RollingFile name="JsonFile" fileName="${LOG_DIR}/application.json"
+                     filePattern="${ARCHIVE_DIR}/application-%d{yyyy-MM-dd}-%i.json.gz">
+            <JsonTemplateLayout eventTemplateUri="classpath:LogstashJsonEventLayoutV1.json"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="30MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="15"/>
+        </RollingFile>
+        
+        <!-- Async Appender for better performance -->
+        <Async name="AsyncFile" bufferSize="1024">
+            <AppenderRef ref="ApplicationFile"/>
+        </Async>
+        
+        <Async name="AsyncTestExecution" bufferSize="512">
+            <AppenderRef ref="TestExecutionFile"/>
+        </Async>
+    </Appenders>
+    
+    <Loggers>
+        <!-- Third-party library loggers -->
+        
+        <!-- Selenium WebDriver -->
+        <Logger name="org.openqa.selenium" level="WARN" additivity="false">
+            <AppenderRef ref="WebDriverFile"/>
+            <AppenderRef ref="Console" level="ERROR"/>
+        </Logger>
+        
+        <Logger name="org.openqa.selenium.remote" level="ERROR" additivity="false">
+            <AppenderRef ref="WebDriverFile"/>
+        </Logger>
+        
+        <Logger name="org.openqa.selenium.support" level="WARN" additivity="false">
+            <AppenderRef ref="WebDriverFile"/>
+        </Logger>
+        
+        <!-- WebDriverManager -->
+        <Logger name="io.github.bonigarcia.wdm" level="WARN" additivity="false">
+            <AppenderRef ref="WebDriverFile"/>
+            <AppenderRef ref="Console" level="ERROR"/>
+        </Logger>
+        
+        <!-- Cucumber -->
+        <Logger name="io.cucumber" level="INFO" additivity="false">
+            <AppenderRef ref="TestExecutionFile"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        
+        <Logger name="io.cucumber.core" level="WARN" additivity="false">
+            <AppenderRef ref="TestExecutionFile"/>
+        </Logger>
+        
+        <!-- TestNG -->
+        <Logger name="org.testng" level="INFO" additivity="false">
+            <AppenderRef ref="TestExecutionFile"/>
+            <AppenderRef ref="Console" level="WARN"/>
+        </Logger>
+        
+        <!-- Allure -->
+        <Logger name="io.qameta.allure" level="WARN" additivity="false">
+            <AppenderRef ref="TestExecutionFile"/>
+        </Logger>
+        
+        <!-- Apache HTTP Client (for API calls if any) -->
+        <Logger name="org.apache.http" level="WARN" additivity="false">
+            <AppenderRef ref="ApplicationFile"/>
+        </Logger>
+        
+        <Logger name="org.apache.http.wire" level="ERROR" additivity="false">
+            <AppenderRef ref="ApplicationFile"/>
+        </Logger>
+        
+        <!-- Application Loggers -->
+        
+        <!-- Base Package Loggers -->
+        <Logger name="base" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="AsyncTestExecution"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <Logger name="base.BasePage" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <Logger name="base.BaseTest" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncTestExecution"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <Logger name="base.ConfigManager" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="WARN"/>
+        </Logger>
+        
+        <!-- Utils Package Loggers -->
+        <Logger name="utils" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <Logger name="utils.WebDriverFactory" level="INFO" additivity="false">
+            <AppenderRef ref="WebDriverFile"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <Logger name="utils.WaitUtils" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="WARN"/>
+        </Logger>
+        
+        <Logger name="utils.CommonUtils" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="INFO"/>
+        </Logger>
+        
+        <!-- Page Package Loggers -->
+        <Logger name="pages" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="AsyncTestExecution"/>
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <!-- Step Definitions Loggers -->
+        <Logger name="stepdefinitions" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncTestExecution"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <!-- Test Runner Loggers -->
+        <Logger name="runners" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncTestExecution"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Logger>
+        
+        <!-- Performance Logger -->
+        <Logger name="performance" level="INFO" additivity="false">
+            <AppenderRef ref="PerformanceFile"/>
+            <AppenderRef ref="Console" level="WARN"/>
+        </Logger>
+        
+        <!-- Special loggers for specific scenarios -->
+        
+        <!-- Screenshot Logger -->
+        <Logger name="screenshot" level="INFO" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        
+        <!-- Test Data Logger -->
+        <Logger name="testdata" level="DEBUG" additivity="false">
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="Console" level="INFO"/>
+        </Logger>
+        
+        <!-- Root Logger -->
+        <Root level="INFO">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="AsyncFile"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Root>
+    </Loggers>
+</Configuration>

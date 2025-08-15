@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.test</groupId>
+    <artifactId>selenium-cucumber-testng</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <!-- Java Configuration -->
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- Dependency Versions -->
+        <selenium.version>4.25.0</selenium.version>
+        <cucumber.version>7.15.0</cucumber.version>
+        <testng.version>7.8.0</testng.version>
+        <webdrivermanager.version>5.6.2</webdrivermanager.version>
+        <allure.version>2.24.0</allure.version>
+        <log4j.version>2.22.0</log4j.version>
+        <maven.surefire.version>3.2.2</maven.surefire.version>
+        <aspectj.version>1.9.20.1</aspectj.version>
+        
+        <!-- Test Execution Configuration -->
+        <browser>chrome</browser>
+        <environment>local</environment>
+        <headless>false</headless>
+        <cucumber.filter.tags>@smoke or @macbook</cucumber.filter.tags>
+        
+        <!-- WebDriver Configuration -->
+        <webdriver.chrome.driver>auto</webdriver.chrome.driver>
+        <webdriver.firefox.driver>auto</webdriver.firefox.driver>
+        <webdriver.edge.driver>auto</webdriver.edge.driver>
+        
+        <!-- Build Configuration -->
+        <maven.test.skip>false</maven.test.skip>
+        <maven.test.failure.ignore>false</maven.test.failure.ignore>
+    </properties>
+
+    <dependencies>
+        <!-- Selenium WebDriver -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>${selenium.version}</version>
+        </dependency>
+
+        <!-- WebDriverManager -->
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>${webdrivermanager.version}</version>
+        </dependency>
+
+        <!-- Cucumber Dependencies -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-testng</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+
+        <!-- TestNG -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+        </dependency>
+
+        <!-- Allure Reporting -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-cucumber7-jvm</artifactId>
+            <version>${allure.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-testng</artifactId>
+            <version>${allure.version}</version>
+        </dependency>
+
+        <!-- Log4j2 -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire Plugin for TestNG -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+                <configuration>
+                    <!-- TestNG Suite Configuration -->
+                    <suiteXmlFiles>
+                        <suiteXmlFile>testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
+                    
+                    <!-- Parallel Execution Configuration -->
+                    <parallel>methods</parallel>
+                    <threadCount>3</threadCount>
+                    <dataProviderThreadCount>2</dataProviderThreadCount>
+                    <useUnlimitedThreads>false</useUnlimitedThreads>
+                    
+                    <!-- Test Execution Configuration -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <testFailureIgnore>false</testFailureIgnore>
+                    <skipTests>false</skipTests>
+                    
+                    <!-- Reporting Configuration -->
+                    <printSummary>true</printSummary>
+                    <reportFormat>xml</reportFormat>
+                    <trimStackTrace>false</trimStackTrace>
+                    <useFile>true</useFile>
+                    
+                    <!-- Include/Exclude Configuration -->
+                    <includes>
+                        <include>**/runners/TestRunner.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*TestCase.java</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/base/**</exclude>
+                        <exclude>**/utils/**</exclude>
+                        <exclude>**/pages/**</exclude>
+                    </excludes>
+                    
+                    <!-- JVM Arguments for Allure and AspectJ -->
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                        -Xmx2048m
+                        -Dfile.encoding=UTF-8
+                        -Djava.awt.headless=true
+                        -Dwebdriver.http.factory=jdk-http-client
+                    </argLine>
+                    
+                    <!-- System Properties -->
+                    <systemPropertyVariables>
+                        <!-- Allure Configuration -->
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                        <allure.report.directory>${project.build.directory}/allure-report</allure.report.directory>
+                        
+                        <!-- Test Configuration -->
+                        <browser>${browser}</browser>
+                        <environment>${environment}</environment>
+                        <headless>${headless}</headless>
+                        <cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
+                        
+                        <!-- WebDriver Configuration -->
+                        <webdriver.chrome.driver>${webdriver.chrome.driver}</webdriver.chrome.driver>
+                        <webdriver.firefox.driver>${webdriver.firefox.driver}</webdriver.firefox.driver>
+                        <webdriver.edge.driver>${webdriver.edge.driver}</webdriver.edge.driver>
+                        
+                        <!-- Logging Configuration -->
+                        <log4j.configurationFile>src/test/resources/log4j2.xml</log4j.configurationFile>
+                        
+                        <!-- Screenshots Configuration -->
+                        <screenshot.on.failure>true</screenshot.on.failure>
+                        <screenshot.path>target/screenshots</screenshot.path>
+                        
+                        <!-- Performance Configuration -->
+                        <implicit.wait>10</implicit.wait>
+                        <explicit.wait>20</explicit.wait>
+                        <page.load.timeout>30</page.load.timeout>
+                        
+                        <!-- Base URL Configuration -->
+                        <base.url>https://www.amazon.com/</base.url>
+                        
+                        <!-- Parallel Configuration -->
+                        <parallel.enabled>true</parallel.enabled>
+                        <parallel.thread.count>3</parallel.thread.count>
+                    </systemPropertyVariables>
+                    
+                    <!-- Environment Variables -->
+                    <environmentVariables>
+                        <TEST_ENVIRONMENT>${environment}</TEST_ENVIRONMENT>
+                        <BROWSER_NAME>${browser}</BROWSER_NAME>
+                        <EXECUTION_MODE>automated</EXECUTION_MODE>
+                    </environmentVariables>
+                    
+                    <!-- Properties Files -->
+                    <systemPropertiesFiles>
+                        <systemPropertiesFile>src/main/resources/config.properties</systemPropertiesFile>
+                    </systemPropertiesFiles>
+                    
+                    <!-- Working Directory -->
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                    
+                    <!-- Retry Configuration -->
+                    <rerunFailingTestsCount>1</rerunFailingTestsCount>
+                    
+                    <!-- Shutdown Configuration -->
+                    <shutdown>kill</shutdown>
+                    <forkedProcessTimeoutInSeconds>7200</forkedProcessTimeoutInSeconds>
+                    
+                </configuration>
+                
+                <!-- Plugin Dependencies -->
+                <dependencies>
+                    <!-- AspectJ Weaver for Allure -->
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                    
+                    <!-- TestNG Dependency -->
+                    <dependency>
+                        <groupId>org.testng</groupId>
+                        <artifactId>testng</artifactId>
+                        <version>${testng.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- Allure Maven Plugin -->
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>2.12.0</version>
+                <configuration>
+                    <reportVersion>${allure.version}</reportVersion>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

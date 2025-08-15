@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+
+<!--
+Amazon MacBook Pro Test Suite Configuration
+This TestNG configuration file defines the test execution strategy for Amazon MacBook Pro tests.
+
+Key Features:
+- Multiple test suite definitions for different execution scenarios
+- Parallel execution support at method, class, and test levels
+- Environment-specific parameter configuration
+- Tag-based test filtering
+- Comprehensive reporting integration
+- Cross-browser testing support
+-->
+
+<suite name="Amazon MacBook Pro Test Suite" 
+       verbose="2" 
+       parallel="tests" 
+       thread-count="3" 
+       data-provider-thread-count="2"
+       time-out="1800000"
+       preserve-order="false"
+       allow-return-values="true">
+
+    <!-- Global Test Parameters -->
+    <parameter name="browser" value="chrome"/>
+    <parameter name="environment" value="local"/>
+    <parameter name="headless" value="false"/>
+    <parameter name="tags" value="@smoke or @macbook"/>
+    
+    <!-- Test Suite Listeners -->
+    <listeners>
+        <!-- Allure TestNG listener for detailed reporting -->
+        <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
+        
+        <!-- Custom listeners can be added here -->
+        <!-- <listener class-name="utils.CustomTestListener"/> -->
+    </listeners>
+    
+    <!-- Groups Definition -->
+    <groups>
+        <run>
+            <!-- Include specific test groups -->
+            <include name="smoke"/>
+            <include name="regression"/>
+            <include name="macbook"/>
+            <include name="priority-high"/>
+        </run>
+    </groups>
+
+    <!-- SMOKE TEST SUITE - Quick validation tests -->
+    <test name="Smoke Tests" 
+          parallel="methods" 
+          thread-count="2"
+          preserve-order="false"
+          enabled="true">
+        
+        <parameter name="tags" value="@smoke"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner">
+                <methods>
+                    <include name="scenarios"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <!-- REGRESSION TEST SUITE - Comprehensive testing -->
+    <test name="Regression Tests" 
+          parallel="methods" 
+          thread-count="3"
+          preserve-order="false"
+          enabled="false">
+        
+        <parameter name="tags" value="@regression"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner">
+                <methods>
+                    <include name="scenarios"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <!-- MACBOOK PRO SPECIFIC TEST SUITE -->
+    <test name="MacBook Pro Tests" 
+          parallel="methods" 
+          thread-count="2"
+          preserve-order="false"
+          enabled="true">
+        
+        <parameter name="tags" value="@macbook"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner">
+                <methods>
+                    <include name="scenarios"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <!-- PRIORITY HIGH TEST SUITE - Critical functionality -->
+    <test name="Priority High Tests" 
+          parallel="methods" 
+          thread-count="2"
+          preserve-order="false"
+          enabled="false">
+        
+        <parameter name="tags" value="@priority-high"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner">
+                <methods>
+                    <include name="scenarios"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <!-- CROSS-BROWSER TEST SUITE - Multi-browser validation -->
+    <test name="Chrome Browser Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@smoke"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <test name="Firefox Browser Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@smoke"/>
+        <parameter name="browser" value="firefox"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <test name="Edge Browser Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@smoke"/>
+        <parameter name="browser" value="edge"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- MOBILE TEST SUITE - Mobile viewport testing -->
+    <test name="Mobile Tests" 
+          parallel="methods" 
+          thread-count="1"
+          preserve-order="false"
+          enabled="false">
+        
+        <parameter name="tags" value="@mobile"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        <parameter name="headless" value="true"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- PERFORMANCE TEST SUITE - Performance validation -->
+    <test name="Performance Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@performance-testing"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        <parameter name="headless" value="true"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- END-TO-END TEST SUITE - Complete user journeys -->
+    <test name="End-to-End Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@end-to-end"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="staging"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- ACCESSIBILITY TEST SUITE - Accessibility validation -->
+    <test name="Accessibility Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@accessibility"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- SECURITY TEST SUITE - Security validation -->
+    <test name="Security Tests" 
+          parallel="none" 
+          thread-count="1"
+          preserve-order="true"
+          enabled="false">
+        
+        <parameter name="tags" value="@security-testing"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+    <!-- DATA-DRIVEN TEST SUITE - Parameterized testing -->
+    <test name="Data-Driven Tests" 
+          parallel="methods" 
+          thread-count="2"
+          preserve-order="false"
+          enabled="false">
+        
+        <parameter name="tags" value="@data-driven"/>
+        <parameter name="browser" value="chrome"/>
+        <parameter name="environment" value="local"/>
+        
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+
+</suite>
+
+
+<!-- 
+ALTERNATIVE SUITE CONFIGURATIONS 
+
+Additional TestNG suite configurations for different execution scenarios.
+Uncomment and modify as needed for specific testing requirements.
+-->
+
+<!-- HEADLESS EXECUTION SUITE -->
+<!--
+<suite name="Headless Test Suite" verbose="2" parallel="tests" thread-count="4">
+    <parameter name="browser" value="chrome"/>
+    <parameter name="headless" value="true"/>
+    <parameter name="tags" value="@smoke"/>
+    
+    <test name="Headless Chrome Tests">
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+</suite>
+-->
+
+<!-- ENVIRONMENT-SPECIFIC SUITE -->
+<!--
+<suite name="Staging Environment Suite" verbose="2" parallel="none" thread-count="1">
+    <parameter name="browser" value="chrome"/>
+    <parameter name="environment" value="staging"/>
+    <parameter name="tags" value="@smoke and not @local-only"/>
+    
+    <test name="Staging Tests">
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+</suite>
+-->
+
+<!-- SEQUENTIAL EXECUTION SUITE -->
+<!--
+<suite name="Sequential Test Suite" verbose="2" parallel="none" thread-count="1" preserve-order="true">
+    <parameter name="browser" value="chrome"/>
+    <parameter name="environment" value="local"/>
+    <parameter name="tags" value="@sequential"/>
+    
+    <test name="Sequential Tests" preserve-order="true">
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+</suite>
+-->
+
+<!-- RETRY MECHANISM SUITE -->
+<!--
+<suite name="Retry Test Suite" verbose="2" parallel="tests" thread-count="2">
+    <parameter name="browser" value="chrome"/>
+    <parameter name="tags" value="@flaky"/>
+    
+    <listeners>
+        <listener class-name="utils.RetryListener"/>
+    </listeners>
+    
+    <test name="Tests with Retry" retry-failed-tests="true">
+        <classes>
+            <class name="runners.TestRunner"/>
+        </classes>
+    </test>
+</suite>
+-->

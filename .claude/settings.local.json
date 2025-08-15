@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn test:*)",
+      "Bash(mkdir:*)",
+      "Bash(del \"D:\\CLAUDE intellij\\claude-test\\src\\main\\java\\pages\\HomePage.java\")",
+      "Bash(move:*)",
+      "Bash(rm:*)",
+      "Bash(mvn clean:*)",
+      "Bash(mvn compile test:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}
