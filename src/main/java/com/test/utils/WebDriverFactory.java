@@ -15,8 +15,8 @@ import org.openqa.selenium.firefox.FirefoxOptions;
 import java.time.Duration;
 
 /**
- * WebDriver Factory for creating different browser instances
- * Supports Chrome, Firefox, and Edge browsers with various configurations
+ * Farklı tarayıcı örnekleri oluşturan WebDriver fabrikası.
+ * Chrome, Firefox ve Edge için yapılandırma, headless ve özel seçeneklerle kurulum sağlar.
  */
 public class WebDriverFactory {
     

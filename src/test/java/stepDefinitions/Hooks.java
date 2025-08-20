@@ -33,7 +33,19 @@ public class Hooks {
         logger.info("└─────────────────────────────────────────────────────────────────────");
         
         try {
-            // Driver is initialized when needed by page objects
+            // Ensure clean browser state for each scenario
+            if (DriverManager.hasDriver()) {
+                if (!DriverManager.isBrowserHealthy()) {
+                    logger.warn("Existing browser is unhealthy, restarting...");
+                    DriverManager.forceRestartBrowser();
+                } else {
+                    logger.debug("Existing browser is healthy, continuing...");
+                }
+            } else {
+                logger.info("Initializing new browser session...");
+                DriverManager.initializeDriver();
+            }
+            
             logger.info("✓ Scenario setup completed successfully");
             
         } catch (Exception e) {

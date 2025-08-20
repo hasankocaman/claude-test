@@ -21,8 +21,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Common Utilities for Selenium Test Automation
- * Contains reusable utility methods for various test operations
+ * Selenium test otomasyonu için ortak yardımcı sınıf.
+ * Beklemeler, metin/numara-fiyat çıkarımı, JS etkileşimleri, ekran görüntüleri,
+ * koleksiyon ve sistem yardımcıları gibi yeniden kullanılabilir statik metodlar içerir.
  */
 public class CommonUtils {
     
@@ -446,6 +447,25 @@ public class CommonUtils {
             return result;
         } catch (Exception e) {
             logger.error("Failed to execute JavaScript '{}': {}", script, e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Execute JavaScript code with element parameter
+     * @param driver WebDriver instance
+     * @param script JavaScript code to execute
+     * @param element WebElement to pass as argument
+     * @return Result of JavaScript execution
+     */
+    public static Object executeJavaScript(WebDriver driver, String script, WebElement element) {
+        try {
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            Object result = js.executeScript(script, element);
+            logger.debug("Executed JavaScript with element: {}", script);
+            return result;
+        } catch (Exception e) {
+            logger.error("Failed to execute JavaScript '{}' with element: {}", script, e.getMessage());
             return null;
         }
     }

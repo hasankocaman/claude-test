@@ -41,6 +41,81 @@ public class AmazonStepDefinitions {
     private long productLoadStartTime;
     private long cartOperationStartTime;
     
+    // Helper methods for test stability
+    
+    /**
+     * Perform browser health check and restart if needed
+     */
+    private void ensureBrowserHealthy(String stepName) {
+        logger.debug("Performing browser health check for step: {}", stepName);
+        
+        if (!DriverManager.isBrowserHealthy()) {
+            logger.warn("Browser health check failed for step: {}, attempting recovery", stepName);
+            
+            // Try recovery first before full restart
+            if (!DriverManager.recoverSession()) {
+                logger.error("Browser session recovery failed for step: {}", stepName);
+                throw new RuntimeException("Browser became unresponsive and could not be recovered during: " + stepName);
+            }
+            
+            logger.info("Browser session recovered successfully for step: {}", stepName);
+        }
+        
+        logger.debug("Browser health check passed for step: {}", stepName);
+    }
+    
+    /**
+     * Take intermediate screenshot with step name
+     */
+    private void takeStepScreenshot(String stepName) {
+        try {
+            String screenshotName = stepName.toLowerCase()
+                .replaceAll("[^a-z0-9]", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
+            
+            String timestamp = CommonUtils.getCurrentDateForFileName();
+            String fullName = screenshotName + "_" + timestamp;
+            
+            CommonUtils.takeScreenshot(DriverManager.getDriver(), fullName);
+            logger.debug("Intermediate screenshot taken: {}", fullName);
+        } catch (Exception e) {
+            logger.warn("Failed to take intermediate screenshot for step '{}': {}", stepName, e.getMessage());
+        }
+    }
+    
+    /**
+     * Perform step with health check and screenshot
+     */
+    private void performStepSafely(String stepName, Runnable stepAction) {
+        logger.info("STEP: {}", stepName);
+        
+        // Pre-step health check
+        ensureBrowserHealthy(stepName);
+        
+        try {
+            // Execute the step
+            stepAction.run();
+            
+            // Post-step screenshot
+            takeStepScreenshot(stepName);
+            
+            logger.info("✓ {} completed successfully", stepName);
+            
+        } catch (Exception e) {
+            logger.error("✗ {} failed: {}", stepName, e.getMessage());
+            
+            // Take failure screenshot
+            try {
+                takeStepScreenshot("FAILED_" + stepName);
+            } catch (Exception screenshotError) {
+                logger.warn("Failed to take failure screenshot: {}", screenshotError.getMessage());
+            }
+            
+            throw e;
+        }
+    }
+    
     // GIVEN STEPS - Setup and initial conditions
     
     /**
@@ -211,22 +286,74 @@ public class AmazonStepDefinitions {
      */
     @When("I select the highest priced MacBook Pro")
     public void i_select_the_highest_priced_macbook_pro() {
-        logger.info("STEP: Selecting highest priced MacBook Pro");
-        
-        Assert.assertNotNull(searchResultsPage, "Search results must be available");
-        
-        // Find and store the most expensive MacBook Pro
-        selectedProduct = searchResultsPage.findMostExpensiveMacBookPro();
-        Assert.assertNotNull(selectedProduct, "No MacBook Pro found in search results");
-        
-        logger.info("Found most expensive MacBook Pro: {} - ${}", 
-                selectedProduct.getTitle(), selectedProduct.getPrice());
-        
-        // Click on the selected product
-        productDetailPage = searchResultsPage.clickOnMostExpensiveMacBookPro();
-        
-        logger.info("✓ Successfully selected highest priced MacBook Pro");
-        takeStepScreenshot("selected_highest_priced_macbook_pro");
+        performStepSafely("Selecting highest priced MacBook Pro", () -> {
+            Assert.assertNotNull(searchResultsPage, "Search results must be available");
+            
+            // Browser health check before critical operation
+            if (!DriverManager.isBrowserHealthy()) {
+                logger.warn("Browser health check failed before selecting MacBook Pro, restarting...");
+                DriverManager.restartBrowserIfNeeded();
+            }
+            
+            // Find and store the most expensive MacBook Pro with retry logic
+            int maxRetries = 3;
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    logger.info("Attempting to find most expensive MacBook Pro (attempt {}/{})", attempt, maxRetries);
+                    selectedProduct = searchResultsPage.findMostExpensiveMacBookPro();
+                    
+                    if (selectedProduct != null) {
+                        logger.info("Found most expensive MacBook Pro: {} - ${}", 
+                                selectedProduct.getTitle(), selectedProduct.getPrice());
+                        break;
+                    } else if (attempt == maxRetries) {
+                        throw new RuntimeException("Could not find any MacBook Pro products after " + maxRetries + " attempts");
+                    }
+                    
+                } catch (Exception e) {
+                    logger.warn("Find attempt {} failed: {}", attempt, e.getMessage());
+                    if (attempt < maxRetries) {
+                        CommonUtils.waitFor(2);
+                        // Check browser health before retry
+                        if (!DriverManager.isBrowserHealthy()) {
+                            logger.warn("Browser unhealthy before retry, restarting...");
+                            DriverManager.restartBrowserIfNeeded();
+                        }
+                    } else {
+                        throw new RuntimeException("Failed to find MacBook Pro after " + maxRetries + " attempts: " + e.getMessage());
+                    }
+                }
+            }
+            
+            Assert.assertNotNull(selectedProduct, "No MacBook Pro found in search results");
+            
+            // Click on the selected product with retry logic
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    logger.info("Attempting to click on selected MacBook Pro (attempt {}/{})", attempt, maxRetries);
+                    productDetailPage = searchResultsPage.clickOnProduct(selectedProduct.getIndex());
+                    
+                    if (productDetailPage != null) {
+                        logger.info("Successfully navigated to product detail page");
+                        break;
+                    } else if (attempt == maxRetries) {
+                        throw new RuntimeException("Could not navigate to product detail page after " + maxRetries + " attempts");
+                    }
+                    
+                } catch (Exception e) {
+                    logger.warn("Click attempt {} failed: {}", attempt, e.getMessage());
+                    if (attempt < maxRetries) {
+                        CommonUtils.waitFor(2);
+                        if (!DriverManager.isBrowserHealthy()) {
+                            logger.warn("Browser unhealthy during click retry, restarting...");
+                            DriverManager.restartBrowserIfNeeded();
+                        }
+                    } else {
+                        throw new RuntimeException("Failed to click on MacBook Pro after " + maxRetries + " attempts: " + e.getMessage());
+                    }
+                }
+            }
+        });
     }
     
     /**
@@ -873,20 +1000,6 @@ public class AmazonStepDefinitions {
         return macBookProducts;
     }
     
-    /**
-     * Take screenshot for current step
-     * @param stepName Name of the step for screenshot filename
-     */
-    private void takeStepScreenshot(String stepName) {
-        try {
-            String timestamp = CommonUtils.getCurrentDateForFileName();
-            String filename = stepName + "_" + timestamp;
-            CommonUtils.takeScreenshot(DriverManager.getDriver(), filename);
-            logger.debug("Screenshot taken: {}", filename);
-        } catch (Exception e) {
-            logger.warn("Failed to take screenshot for step '{}': {}", stepName, e.getMessage());
-        }
-    }
     
     /**
      * Get current page title for logging

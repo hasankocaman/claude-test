@@ -61,9 +61,9 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner">
+            <class name="com.test.runners.TestRunner">
                 <methods>
-                    <include name="scenarios"/>
+                    <include name="runScenario"/>
                 </methods>
             </class>
         </classes>
@@ -81,9 +81,9 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner">
+            <class name="com.test.runners.TestRunner">
                 <methods>
-                    <include name="scenarios"/>
+                    <include name="runScenario"/>
                 </methods>
             </class>
         </classes>
@@ -101,9 +101,9 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner">
+            <class name="com.test.runners.TestRunner">
                 <methods>
-                    <include name="scenarios"/>
+                    <include name="runScenario"/>
                 </methods>
             </class>
         </classes>
@@ -141,7 +141,7 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 
@@ -156,7 +156,7 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 
@@ -171,7 +171,7 @@ Key Features:
         <parameter name="environment" value="local"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 
@@ -188,7 +188,7 @@ Key Features:
         <parameter name="headless" value="true"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 
@@ -205,7 +205,7 @@ Key Features:
         <parameter name="headless" value="true"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 
@@ -221,7 +221,7 @@ Key Features:
         <parameter name="environment" value="staging"/>
         
         <classes>
-            <class name="runners.TestRunner"/>
+            <class name="com.test.runners.TestRunner"/>
         </classes>
     </test>
 

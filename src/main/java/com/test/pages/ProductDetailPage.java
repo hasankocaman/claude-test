@@ -11,8 +11,9 @@ import java.util.List;
 import static com.test.utils.CommonUtils.getSelectedDropdownOption;
 
 /**
- * Amazon Product Detail Page Object Model
- * Contains elements and methods for product detail page interactions
+ * Amazon Ürün Detay Sayfası Page Object.
+ * Ürün başlığı/fiyatı/özellikleri, stok ve Prime bilgisi, sepete ekleme akışları ve
+ * görsel/karşılaştırma bileşenleriyle etkileşimleri kapsar.
  */
 public class ProductDetailPage extends BasePage {
     
@@ -171,7 +172,7 @@ public class ProductDetailPage extends BasePage {
     // Page Load Methods
     
     /**
-     * Wait for product detail page to load completely
+     * Ürün detay sayfasının tamamen yüklenmesini bekler.
      */
     private void waitForProductPageToLoad() {
         waitUtils.waitForElementToBeVisible(productTitle);
@@ -183,8 +184,7 @@ public class ProductDetailPage extends BasePage {
     // Product Information Methods
     
     /**
-     * Get product title
-     * @return Product title text
+     * Ürün başlığını döner.
      */
     public String getProductTitle() {
         String title = getText(productTitle);
@@ -193,8 +193,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get product price
-     * @return Product price as double
+     * Ürün fiyatını numerik değer olarak döner.
      */
     public double getProductPrice() {
         double price = 0.0;
@@ -232,8 +231,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get product price as formatted string
-     * @return Formatted price string
+     * Ürün fiyatını biçimlendirilmiş metin olarak döner.
      */
     public String getProductPriceText() {
         try {
@@ -254,8 +252,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get product availability status
-     * @return Availability text
+     * Ürün stok/erişilebilirlik durumunu döner.
      */
     public String getAvailabilityStatus() {
         try {
@@ -272,8 +269,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Check if product is in stock
-     * @return true if product is in stock
+     * Ürün stokta mı kontrol eder.
      */
     public boolean isProductInStock() {
         String availability = getAvailabilityStatus().toLowerCase();
@@ -286,8 +282,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get product features as list
-     * @return List of product features
+     * Ürün özelliklerini liste olarak döner.
      */
     public List<String> getProductFeatures() {
         List<String> features = productFeatures.stream()
@@ -302,8 +297,7 @@ public class ProductDetailPage extends BasePage {
     // Add to Cart Methods
     
     /**
-     * Add product to cart
-     * @return CartPage instance if successful, or this page if cart dialog appears
+     * Ürünü sepete ekler. Diyalog açılırsa sayfada kalır, yoksa sepete gidişi döner.
      */
     public Object addToCart() {
         logger.info("Adding product to cart");
@@ -334,8 +328,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Add product to cart and proceed to checkout
-     * @return CartPage instance
+     * Ürünü sepete ekler ve ödeme adımına ilerler.
      */
     public CartPage addToCartAndProceedToCheckout() {
         addToCart();
@@ -350,8 +343,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Add product to cart and view cart
-     * @return CartPage instance
+     * Ürünü sepete ekler ve sepet sayfasına gider.
      */
     public CartPage addToCartAndViewCart() {
         addToCart();
@@ -366,8 +358,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Check if add to cart confirmation dialog is displayed
-     * @return true if dialog is visible
+     * Sepete ekleme onay diyalogu görünür mü kontrol eder.
      */
     public boolean isAddToCartDialogDisplayed() {
         boolean dialogVisible = isElementDisplayed(cartConfirmationDialog) || 
@@ -377,8 +368,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Verify product was successfully added to cart
-     * @return true if success message is displayed
+     * Ürünün sepete başarıyla eklendiğini doğrular.
      */
     public boolean isProductAddedToCartSuccessfully() {
         boolean success = isElementDisplayed(addToCartSuccessMessage) ||
@@ -390,8 +380,7 @@ public class ProductDetailPage extends BasePage {
     // Quantity Methods
     
     /**
-     * Set product quantity
-     * @param quantity Desired quantity
+     * Ürün adedini günceller.
      */
     public void setQuantity(int quantity) {
         if (quantity < 1) {
@@ -417,8 +406,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get currently selected quantity
-     * @return Selected quantity
+     * Seçili adet değerini döner.
      */
     public int getSelectedQuantity() {
         try {
@@ -440,8 +428,7 @@ public class ProductDetailPage extends BasePage {
     // Product Options Methods
     
     /**
-     * Select color option if available
-     * @param color Color name to select
+     * Renk seçeneğini (varsa) seçer.
      */
     public void selectColor(String color) {
         if (isElementDisplayed(colorOptions)) {
@@ -454,8 +441,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Select size option if available
-     * @param size Size to select
+     * Beden seçeneğini (varsa) seçer.
      */
     public void selectSize(String size) {
         if (isElementDisplayed(sizeOptions)) {
@@ -470,8 +456,7 @@ public class ProductDetailPage extends BasePage {
     // Rating and Review Methods
     
     /**
-     * Get product rating
-     * @return Rating text (e.g., "4.5 out of 5 stars")
+     * Ürün puanlamasını metin olarak döner.
      */
     public String getProductRating() {
         try {
@@ -491,8 +476,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get number of customer reviews
-     * @return Number of reviews
+     * Müşteri değerlendirme sayısını döner.
      */
     public int getReviewCount() {
         try {
@@ -511,8 +495,7 @@ public class ProductDetailPage extends BasePage {
     // Prime and Shipping Methods
     
     /**
-     * Check if product has Prime shipping
-     * @return true if Prime eligible
+     * Ürün Prime kargo uygunluğuna sahip mi kontrol eder.
      */
     public boolean isPrimeEligible() {
         boolean primeEligible = isElementDisplayed(primeIcon) || 
@@ -522,8 +505,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Get delivery information
-     * @return Delivery message text
+     * Teslimat bilgisi metnini döner.
      */
     public String getDeliveryInfo() {
         try {
@@ -543,8 +525,7 @@ public class ProductDetailPage extends BasePage {
     // Validation Methods
     
     /**
-     * Verify this is a MacBook Pro product page
-     * @return true if product title contains MacBook Pro
+     * Bu sayfanın bir MacBook Pro ürününe ait olup olmadığını kontrol eder.
      */
     public boolean isMacBookProProduct() {
         String title = getProductTitle().toLowerCase();
@@ -554,8 +535,7 @@ public class ProductDetailPage extends BasePage {
     }
     
     /**
-     * Verify product detail page is loaded
-     * @return true if key elements are present
+     * Ürün detay sayfasının yüklendiğini doğrular.
      */
     public boolean isProductPageLoaded() {
         boolean loaded = isElementDisplayed(productTitle) && 
@@ -568,8 +548,7 @@ public class ProductDetailPage extends BasePage {
     // Navigation Methods
     
     /**
-     * Navigate back to search results
-     * @return SearchResultsPage instance
+     * Arama sonuçlarına geri döner.
      */
     public SearchResultsPage goBackToSearchResults() {
         navigateBack();
@@ -580,16 +559,14 @@ public class ProductDetailPage extends BasePage {
     // Utility Methods
     
     /**
-     * Take screenshot of product page
-     * @param fileName Screenshot file name
+     * Ürün sayfasının ekran görüntüsünü alır.
      */
     public void takeProductPageScreenshot(String fileName) {
         CommonUtils.takeScreenshot(driver, "product_" + fileName);
     }
     
     /**
-     * Get all product information as formatted string
-     * @return Formatted product information
+     * Ürün özet bilgilerini metin olarak döner.
      */
     public String getProductSummary() {
         StringBuilder summary = new StringBuilder();

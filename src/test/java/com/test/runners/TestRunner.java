@@ -17,10 +17,17 @@ import org.testng.annotations.DataProvider;
         monochrome = true,
         publish = false
 )
+/**
+ * Cucumber + TestNG koşucu sınıfı.
+ * Özellik dosyaları, glue paketleri ve raporlayıcı eklentilerini konfigüre eder.
+ */
 public class TestRunner extends AbstractTestNGCucumberTests {
     
     @Override
-    @DataProvider(parallel = true)
+    @DataProvider(parallel = false)
+    /**
+     * Senaryoların parametre sağlayıcısı (gerekirse paralel çalıştırma için ayarlanabilir).
+     */
     public Object[][] scenarios() {
         return super.scenarios();
     }

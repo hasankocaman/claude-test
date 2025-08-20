@@ -6,7 +6,7 @@ Feature: Sample Web Testing Feature
   @smoke
   Scenario: Verify page title
     When the user is on the home page
-    Then the page title should contain "Example"
+    Then the page title should contain "Amazon"
 
   @regression
   Scenario: Search functionality

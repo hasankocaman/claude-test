@@ -15,9 +15,19 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Ekran görüntüsü yardımcı sınıfı.
+ * Hata durumlarında ve istenildiğinde ekran görüntüsü alıp dosyaya kaydetme ve
+ * Allure raporuna ek olarak ekleme işlevlerini sağlar.
+ */
 public class ScreenshotUtils {
     private static final Logger logger = LogManager.getLogger(ScreenshotUtils.class);
     
+    /**
+     * Verilen test adıyla PNG ekran görüntüsü alır ve konfigüre edilen dizine kaydeder.
+     * @param testName dosya adı için temel ad
+     * @return tam dosya yolu; hata olursa null
+     */
     public static String captureScreenshot(String testName) {
         try {
             WebDriver driver = DriverManager.getDriver();
@@ -45,6 +55,10 @@ public class ScreenshotUtils {
     }
     
     @Attachment(value = "Screenshot", type = "image/png")
+    /**
+     * Allure raporuna ekran görüntüsü ekler.
+     * @return PNG byte dizisi; hata olursa boş dizi
+     */
     public static byte[] attachScreenshotToAllure() {
         try {
             WebDriver driver = DriverManager.getDriver();
@@ -55,6 +69,9 @@ public class ScreenshotUtils {
         }
     }
     
+    /**
+     * Konfigürasyonda etkinse başarısızlık anında ekran görüntüsü alır ve Allure'a ekler.
+     */
     public static void captureScreenshotOnFailure(String scenarioName) {
         if (ConfigReader.isScreenshotOnFailure()) {
             captureScreenshot(scenarioName);

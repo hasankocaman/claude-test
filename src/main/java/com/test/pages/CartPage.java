@@ -11,8 +11,9 @@ import java.util.List;
 import static com.test.utils.CommonUtils.getSelectedDropdownOption;
 
 /**
- * Amazon Shopping Cart Page Object Model
- * Contains elements and methods for shopping cart page interactions
+ * Amazon Shopping Cart Page Object Model.
+ * Sepet durumunu okuma, öğe doğrulama/çıkarma, miktar güncelleme ve ödeme adımına geçiş gibi
+ * işlemleri barındırır.
  */
 public class CartPage extends BasePage {
     
@@ -153,7 +154,7 @@ public class CartPage extends BasePage {
     // Page Load Methods
     
     /**
-     * Wait for cart page to load completely
+     * Sepet sayfasının tamamen yüklenmesini bekler.
      */
     private void waitForCartPageToLoad() {
         // Wait for either active cart or empty cart section
@@ -176,8 +177,8 @@ public class CartPage extends BasePage {
     // Cart Status Methods
     
     /**
-     * Check if cart is empty
-     * @return true if cart has no items
+     * Sepetin boş olup olmadığını döner.
+     * @return boş ise true
      */
     public boolean isCartEmpty() {
         boolean isEmpty = cartItems.isEmpty() || isElementDisplayed(emptyCartSection);
@@ -186,8 +187,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get number of items in cart
-     * @return Number of items in active cart
+     * Sepetteki öğe sayısını döner.
      */
     public int getCartItemCount() {
         int count = cartItems.size();
@@ -196,8 +196,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get cart subtotal amount
-     * @return Subtotal as double
+     * Sepet ara toplam tutarını döner.
      */
     public double getCartSubtotal() {
         double subtotal = 0.0;
@@ -226,8 +225,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get cart subtotal as formatted text
-     * @return Formatted subtotal string
+     * Sepet ara toplamını biçimlendirilmiş metin olarak döner.
      */
     public String getCartSubtotalText() {
         try {
@@ -247,9 +245,7 @@ public class CartPage extends BasePage {
     // Item Verification Methods
     
     /**
-     * Verify if specific product is in cart by title
-     * @param productTitle Product title to search for
-     * @return true if product found in cart
+     * Başlığa göre belirli ürünün sepette olup olmadığını doğrular.
      */
     public boolean isProductInCart(String productTitle) {
         for (WebElement titleElement : itemTitles) {
@@ -268,8 +264,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Verify if MacBook Pro is in cart
-     * @return true if any MacBook Pro product is in cart
+     * Sepette herhangi bir MacBook Pro ürünü olup olmadığını kontrol eder.
      */
     public boolean isMacBookProInCart() {
         for (WebElement titleElement : itemTitles) {
@@ -287,8 +282,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get all item titles in cart
-     * @return List of product titles in cart
+     * Sepetteki tüm öğe başlıklarını döner.
      */
     public List<String> getCartItemTitles() {
         List<String> titles = itemTitles.stream()
@@ -301,8 +295,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get all item prices in cart
-     * @return List of product prices in cart
+     * Sepetteki tüm öğe fiyatlarını döner.
      */
     public List<Double> getCartItemPrices() {
         List<Double> prices = new java.util.ArrayList<>();
@@ -322,8 +315,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get details of first item in cart
-     * @return CartItemInfo object with item details
+     * Sepetteki ilk öğenin detaylarını döner.
      */
     public CartItemInfo getFirstCartItem() {
         if (cartItems.isEmpty()) {
@@ -335,9 +327,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get details of cart item by index
-     * @param index Item index (0-based)
-     * @return CartItemInfo object
+     * Verilen indeks için öğe detaylarını döner.
      */
     public CartItemInfo getCartItem(int index) {
         if (index < 0 || index >= cartItems.size()) {
@@ -364,9 +354,7 @@ public class CartPage extends BasePage {
     // Quantity Management Methods
     
     /**
-     * Get quantity of specific cart item
-     * @param itemIndex Item index
-     * @return Item quantity
+     * Verilen öğe indeksinin miktarını döner.
      */
     public int getItemQuantity(int itemIndex) {
         try {
@@ -385,9 +373,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Update quantity of cart item
-     * @param itemIndex Item index
-     * @param newQuantity New quantity
+     * Verilen öğenin miktarını günceller.
      */
     public void updateItemQuantity(int itemIndex, int newQuantity) {
         if (newQuantity < 0) newQuantity = 0;
@@ -412,8 +398,7 @@ public class CartPage extends BasePage {
     // Item Actions Methods
     
     /**
-     * Remove item from cart
-     * @param itemIndex Item index to remove
+     * Öğeyi sepetten kaldırır.
      */
     public void removeItem(int itemIndex) {
         if (itemIndex < 0 || itemIndex >= deleteButtons.size()) {
@@ -432,8 +417,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Save item for later
-     * @param itemIndex Item index to save
+     * Öğeyi daha sonra için kaydeder.
      */
     public void saveItemForLater(int itemIndex) {
         if (itemIndex < 0 || itemIndex >= saveForLaterButtons.size()) {
@@ -452,8 +436,7 @@ public class CartPage extends BasePage {
     // Checkout Methods
     
     /**
-     * Proceed to checkout
-     * @return true if successfully navigated to checkout
+     * Ödeme adımına ilerler.
      */
     public boolean proceedToCheckout() {
         logger.info("Proceeding to checkout");
@@ -487,8 +470,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Check if checkout button is available
-     * @return true if checkout can be initiated
+     * Ödeme adımına geçiş yapılabilir mi kontrol eder.
      */
     public boolean isCheckoutAvailable() {
         boolean available = (isElementDisplayed(proceedToCheckoutButton) && isElementEnabled(proceedToCheckoutButton)) ||
@@ -502,8 +484,7 @@ public class CartPage extends BasePage {
     // Navigation Methods
     
     /**
-     * Continue shopping (go back to homepage)
-     * @return HomePage instance
+     * Alışverişe devam eder (ana sayfaya döner).
      */
     public HomePage continueShopping() {
         if (isElementDisplayed(continueShoppingButton)) {
@@ -521,8 +502,7 @@ public class CartPage extends BasePage {
     // Validation Methods
     
     /**
-     * Verify cart page is loaded
-     * @return true if cart page elements are present
+     * Sepet sayfasının yüklendiğini doğrular.
      */
     public boolean isCartPageLoaded() {
         boolean loaded = isElementDisplayed(activeCartContainer) || isElementDisplayed(emptyCartSection);
@@ -531,9 +511,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Verify cart has expected item count
-     * @param expectedCount Expected number of items
-     * @return true if count matches
+     * Sepette beklenen öğe sayısı var mı kontrol eder.
      */
     public boolean verifyCartItemCount(int expectedCount) {
         int actualCount = getCartItemCount();
@@ -544,8 +522,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Verify cart is not empty
-     * @return true if cart has items
+     * Sepetin boş olmadığını doğrular.
      */
     public boolean verifyCartIsNotEmpty() {
         boolean notEmpty = !isCartEmpty();
@@ -556,8 +533,7 @@ public class CartPage extends BasePage {
     // Prime and Delivery Methods
     
     /**
-     * Check if any items have Prime shipping
-     * @return true if Prime items present
+     * Prime kargoya sahip öğe var mı kontrol eder.
      */
     public boolean hassPrimeItems() {
         boolean hasPrime = !primeBadges.isEmpty() && 
@@ -567,8 +543,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get delivery messages for cart items
-     * @return List of delivery message texts
+     * Sepet öğeleri için teslimat mesajlarını döner.
      */
     public List<String> getDeliveryMessages() {
         List<String> messages = deliveryMessages.stream()
@@ -583,8 +558,7 @@ public class CartPage extends BasePage {
     // Error Handling Methods
     
     /**
-     * Check if there are any error messages
-     * @return true if errors present
+     * Hata mesajı var mı kontrol eder.
      */
     public boolean hasErrors() {
         boolean hasErrors = (!errorMessages.isEmpty() && errorMessages.stream().anyMatch(this::isElementDisplayed)) ||
@@ -595,8 +569,7 @@ public class CartPage extends BasePage {
     }
     
     /**
-     * Get all error messages
-     * @return List of error message texts
+     * Tüm hata mesajlarını döner.
      */
     public List<String> getErrorMessages() {
         List<String> errors = new java.util.ArrayList<>();
@@ -618,16 +591,14 @@ public class CartPage extends BasePage {
     // Utility Methods
     
     /**
-     * Take screenshot of cart page
-     * @param fileName Screenshot file name
+     * Sepet sayfasının ekran görüntüsünü alır.
      */
     public void takeCartPageScreenshot(String fileName) {
         CommonUtils.takeScreenshot(driver, "cart_" + fileName);
     }
     
     /**
-     * Get cart summary as formatted string
-     * @return Formatted cart summary
+     * Sepetin özet bilgisini metin olarak döner.
      */
     public String getCartSummary() {
         StringBuilder summary = new StringBuilder();
@@ -656,6 +627,9 @@ public class CartPage extends BasePage {
     }
     
     // Inner Class for Cart Item Information
+    /**
+     * Sepet öğesi bilgi modeli.
+     */
     public static class CartItemInfo {
         private final String title;
         private final double price;

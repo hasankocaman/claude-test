@@ -12,8 +12,9 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
 /**
- * Wait Utilities for Selenium WebDriver
- * Provides various wait mechanisms for different scenarios
+ * Selenium WebDriver bekleme yardımcıları.
+ * Görünürlük/tıklanabilirlik, metin/URL/title koşulları, çerçeve/alert beklemeleri ve
+ * tam sayfa hazır olma (DOM+jQuery+AJAX) gibi gelişmiş bekleme senaryolarını kapsar.
  */
 public class WaitUtils {
     
@@ -24,17 +25,22 @@ public class WaitUtils {
     private final WebDriverWait longWait;
     private final WebDriverWait shortWait;
     
-    // Default timeout configurations
-    private static final int DEFAULT_TIMEOUT = 10;
-    private static final int LONG_TIMEOUT = 30;
-    private static final int SHORT_TIMEOUT = 5;
-    private static final int POLLING_INTERVAL = 500; // milliseconds
+    // Enhanced timeout configurations for stability
+    private static final int DEFAULT_TIMEOUT = 30; // Increased for Amazon's slow loading
+    private static final int LONG_TIMEOUT = 60; // Increased for complex operations
+    private static final int SHORT_TIMEOUT = 10; // Increased for basic operations
+    private static final int POLLING_INTERVAL = 500; // Balanced for stability
     
     public WaitUtils(WebDriver driver) {
         this.driver = driver;
         this.defaultWait = new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_TIMEOUT));
         this.longWait = new WebDriverWait(driver, Duration.ofSeconds(LONG_TIMEOUT));
         this.shortWait = new WebDriverWait(driver, Duration.ofSeconds(SHORT_TIMEOUT));
+        
+        // Set polling intervals for more responsive waits
+        this.defaultWait.pollingEvery(Duration.ofMillis(POLLING_INTERVAL));
+        this.longWait.pollingEvery(Duration.ofMillis(POLLING_INTERVAL));
+        this.shortWait.pollingEvery(Duration.ofMillis(POLLING_INTERVAL));
     }
     
     // Element Visibility Waits
@@ -296,27 +302,6 @@ public class WaitUtils {
     
     // Page Load Waits
     
-    /**
-     * Wait for page to load completely (JavaScript execution complete)
-     */
-    public void waitForPageToLoad() {
-        waitForPageToLoad(LONG_TIMEOUT);
-    }
-    
-    /**
-     * Wait for page to load completely with custom timeout
-     * @param timeoutSeconds Custom timeout in seconds
-     */
-    public void waitForPageToLoad(int timeoutSeconds) {
-        try {
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
-            wait.until(webDriver -> ((JavascriptExecutor) webDriver)
-                    .executeScript("return document.readyState").equals("complete"));
-            logger.debug("Page loaded completely within {} seconds", timeoutSeconds);
-        } catch (TimeoutException e) {
-            logger.warn("Page did not load completely within {} seconds", timeoutSeconds);
-        }
-    }
     
     /**
      * Wait for page title to contain specific text
@@ -597,5 +582,210 @@ public class WaitUtils {
     
     public WebDriverWait getShortWait() {
         return shortWait;
+    }
+    
+    // Enhanced Performance and Page Load Methods
+    
+    /**
+     * Wait for page to load completely using JavaScript readyState
+     * @return true when page is fully loaded
+     */
+    public boolean waitForPageToLoad() {
+        return waitForPageToLoad(LONG_TIMEOUT);
+    }
+    
+    /**
+     * Wait for page to load completely with custom timeout
+     * @param timeoutSeconds Custom timeout in seconds
+     * @return true when page is fully loaded
+     */
+    public boolean waitForPageToLoad(int timeoutSeconds) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            boolean loaded = wait.until(driver -> {
+                JavascriptExecutor js = (JavascriptExecutor) driver;
+                String readyState = js.executeScript("return document.readyState").toString();
+                logger.debug("Page readyState: {}", readyState);
+                return "complete".equals(readyState);
+            });
+            logger.debug("Page loaded completely within {} seconds", timeoutSeconds);
+            return loaded;
+        } catch (TimeoutException e) {
+            logger.error("Page did not load within {} seconds", timeoutSeconds);
+            return false;
+        }
+    }
+    
+    /**
+     * Wait for jQuery to be loaded and ready (if present)
+     * @return true when jQuery is ready or not present
+     */
+    public boolean waitForJQueryReady() {
+        return waitForJQueryReady(DEFAULT_TIMEOUT);
+    }
+    
+    /**
+     * Wait for jQuery to be loaded and ready with custom timeout
+     * @param timeoutSeconds Custom timeout in seconds
+     * @return true when jQuery is ready or not present
+     */
+    public boolean waitForJQueryReady(int timeoutSeconds) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            boolean ready = wait.until(driver -> {
+                JavascriptExecutor js = (JavascriptExecutor) driver;
+                try {
+                    Object jqueryResult = js.executeScript("return typeof jQuery !== 'undefined' ? jQuery.active === 0 : true");
+                    return Boolean.TRUE.equals(jqueryResult);
+                } catch (Exception e) {
+                    // jQuery not present, consider ready
+                    return true;
+                }
+            });
+            logger.debug("jQuery ready state achieved within {} seconds", timeoutSeconds);
+            return ready;
+        } catch (TimeoutException e) {
+            logger.warn("jQuery ready state not achieved within {} seconds, continuing...", timeoutSeconds);
+            return false;
+        }
+    }
+    
+    /**
+     * Wait for all AJAX requests to complete
+     * @return true when no active AJAX requests
+     */
+    public boolean waitForAjaxComplete() {
+        return waitForAjaxComplete(DEFAULT_TIMEOUT);
+    }
+    
+    /**
+     * Wait for all AJAX requests to complete with custom timeout
+     * @param timeoutSeconds Custom timeout in seconds
+     * @return true when no active AJAX requests
+     */
+    public boolean waitForAjaxComplete(int timeoutSeconds) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            boolean complete = wait.until(driver -> {
+                JavascriptExecutor js = (JavascriptExecutor) driver;
+                try {
+                    // Check jQuery active requests
+                    Object jqueryActive = js.executeScript("return typeof jQuery !== 'undefined' ? jQuery.active : 0");
+                    
+                    // Check XMLHttpRequest active requests
+                    Object xhrActive = js.executeScript(
+                        "return (function() {" +
+                        "  var xhr = XMLHttpRequest.prototype;" +
+                        "  return xhr._activeCount || 0;" +
+                        "})();"
+                    );
+                    
+                    boolean jqueryReady = jqueryActive == null || ((Long) jqueryActive) == 0;
+                    boolean xhrReady = xhrActive == null || ((Long) xhrActive) == 0;
+                    
+                    return jqueryReady && xhrReady;
+                } catch (Exception e) {
+                    // If we can't determine AJAX state, assume complete
+                    return true;
+                }
+            });
+            logger.debug("AJAX requests completed within {} seconds", timeoutSeconds);
+            return complete;
+        } catch (TimeoutException e) {
+            logger.warn("AJAX requests may not have completed within {} seconds", timeoutSeconds);
+            return false;
+        }
+    }
+    
+    /**
+     * Comprehensive wait for full page readiness (DOM + AJAX + jQuery)
+     * @return true when page is fully ready
+     */
+    public boolean waitForFullPageReady() {
+        return waitForFullPageReady(LONG_TIMEOUT);
+    }
+    
+    /**
+     * Comprehensive wait for full page readiness with custom timeout
+     * @param timeoutSeconds Custom timeout in seconds
+     * @return true when page is fully ready
+     */
+    public boolean waitForFullPageReady(int timeoutSeconds) {
+        logger.debug("Waiting for full page readiness...");
+        
+        boolean pageLoaded = waitForPageToLoad(timeoutSeconds);
+        boolean jqueryReady = waitForJQueryReady(Math.min(timeoutSeconds / 2, 10));
+        boolean ajaxComplete = waitForAjaxComplete(Math.min(timeoutSeconds / 2, 10));
+        
+        boolean fullyReady = pageLoaded && jqueryReady && ajaxComplete;
+        
+        if (fullyReady) {
+            logger.debug("Page is fully ready");
+        } else {
+            logger.warn("Page readiness checks - DOM: {}, jQuery: {}, AJAX: {}", 
+                       pageLoaded, jqueryReady, ajaxComplete);
+        }
+        
+        return fullyReady;
+    }
+    
+    /**
+     * Wait for network activity to settle (no requests for specified time)
+     * @param settlePeriodMillis Time in milliseconds to wait without network activity
+     * @return true when network has settled
+     */
+    public boolean waitForNetworkSettle(long settlePeriodMillis) {
+        return waitForNetworkSettle(settlePeriodMillis, DEFAULT_TIMEOUT);
+    }
+    
+    /**
+     * Wait for network activity to settle with custom timeout
+     * @param settlePeriodMillis Time in milliseconds to wait without network activity
+     * @param timeoutSeconds Maximum time to wait
+     * @return true when network has settled
+     */
+    public boolean waitForNetworkSettle(long settlePeriodMillis, int timeoutSeconds) {
+        logger.debug("Waiting for network to settle for {} ms", settlePeriodMillis);
+        
+        long startTime = System.currentTimeMillis();
+        long lastActivityTime = startTime;
+        
+        try {
+            while (System.currentTimeMillis() - startTime < timeoutSeconds * 1000L) {
+                boolean hasActivity = false;
+                
+                try {
+                    JavascriptExecutor js = (JavascriptExecutor) driver;
+                    Object result = js.executeScript(
+                        "return (typeof performance !== 'undefined' && " +
+                        "performance.getEntriesByType) ? " +
+                        "performance.getEntriesByType('resource').length : 0"
+                    );
+                    
+                    // Simple heuristic: if resource count changed, there was activity
+                    if (result instanceof Long && (Long) result > 0) {
+                        hasActivity = true;
+                    }
+                } catch (Exception e) {
+                    logger.debug("Could not check network activity: {}", e.getMessage());
+                }
+                
+                if (hasActivity) {
+                    lastActivityTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - lastActivityTime >= settlePeriodMillis) {
+                    logger.debug("Network settled after {} ms", settlePeriodMillis);
+                    return true;
+                }
+                
+                sleep(100); // Check every 100ms
+            }
+            
+            logger.warn("Network did not settle within {} seconds", timeoutSeconds);
+            return false;
+            
+        } catch (Exception e) {
+            logger.error("Error waiting for network settle: {}", e.getMessage());
+            return false;
+        }
     }
 }
