@@ -1,0 +1,53 @@
+--- a/src/main/java/com/test/utils/DriverManager.java
++++ b/src/main/java/com/test/utils/DriverManager.java
+@@ ...
+-import org.openqa.selenium.chrome.ChromeDriver;
+-import org.openqa.selenium.chrome.ChromeOptions;
+-import org.openqa.selenium.edge.EdgeDriver;
+-import org.openqa.selenium.edge.EdgeOptions;
+-import org.openqa.selenium.firefox.FirefoxDriver;
+-import org.openqa.selenium.firefox.FirefoxOptions;
++import org.openqa.selenium.remote.RemoteWebDriver;
++import org.openqa.selenium.remote.DesiredCapabilities;
++import java.net.URL;
+@@ ...
+-    private static WebDriver createDriver(String browserName) {
+-        switch (browserName) {
+-            case "chrome":
+-                return createChromeDriver();
+-            case "firefox":
+-                return createFirefoxDriver();
+-            case "edge":
+-                return createEdgeDriver();
+-            default:
+-                logger.warn("Unknown browser '{}', defaulting to Chrome", browserName);
+-                return createChromeDriver();
+-        }
+-    }
++    private static WebDriver createDriver(String browserName) {
++        String selenoidUrl = System.getProperty("SELENOID_URL");
++        boolean videoEnabled = Boolean.parseBoolean(System.getProperty("video.enabled", "false"));
++        try {
++            if (selenoidUrl != null && !selenoidUrl.isEmpty()) {
++                DesiredCapabilities caps = new DesiredCapabilities();
++                caps.setBrowserName(browserName);
++                caps.setCapability("enableVNC", true);
++                caps.setCapability("enableVideo", videoEnabled);
++                return new RemoteWebDriver(new URL(selenoidUrl), caps);
++            }
++        } catch (Exception e) {
++            logger.error("Failed to create RemoteWebDriver: {}", e.getMessage(), e);
++        }
++        // Fallback to local
++        switch (browserName) {
++            case "chrome":
++                return createChromeDriver();
++            case "firefox":
++                return createFirefoxDriver();
++            case "edge":
++                return createEdgeDriver();
++            default:
++                logger.warn("Unknown browser '{}', defaulting to Chrome", browserName);
++                return createChromeDriver();
++        }
++    }

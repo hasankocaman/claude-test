@@ -1,0 +1,26 @@
+{
+  "chrome": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "selenoid/vnc:chrome_124.0",
+        "port": "4444",
+        "path": "/",
+        "env": ["TZ=Europe/Istanbul"],
+        "video": true
+      }
+    }
+  },
+  "firefox": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "selenoid/vnc:firefox_126.0",
+        "port": "4444",
+        "path": "/",
+        "env": ["TZ=Europe/Istanbul"],
+        "video": true
+      }
+    }
+  }
+}

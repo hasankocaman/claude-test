@@ -1,0 +1,26 @@
+version: '3.5'
+
+services:
+  selenoid:
+    image: aerokube/selenoid:latest-release
+    container_name: selenoid
+    restart: always
+    ports:
+      - "4444:4444"
+    volumes:
+      - "./browsers.json:/etc/selenoid/browsers.json:ro"
+      - "./artifacts/videos:/opt/selenoid/video"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      - OVERRIDE_VIDEO_OUTPUT_DIR=/opt/selenoid/video
+    command: ["-limit", "5", "-enable-video"]
+
+  selenoid-ui:
+    image: aerokube/selenoid-ui:latest-release
+    container_name: selenoid-ui
+    restart: always
+    ports:
+      - "8080:8080"
+    links:
+      - selenoid
+    command: ["--selenoid-uri", "http://selenoid:4444"]
