@@ -54,13 +54,8 @@ public class CommonUtils {
      * @param seconds Time to wait in seconds
      */
     public static void waitFor(int seconds) {
-        try {
-            Thread.sleep(seconds * 1000L);
-            logger.debug("Waited for {} seconds", seconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("Wait interrupted: {}", e.getMessage());
-        }
+        WaitUtils.sleepSeconds(Math.max(0, seconds));
+        logger.debug("Waited for {} seconds", seconds);
     }
     
     /**
@@ -68,13 +63,8 @@ public class CommonUtils {
      * @param milliseconds Time to wait in milliseconds
      */
     public static void waitForMillis(long milliseconds) {
-        try {
-            Thread.sleep(milliseconds);
-            logger.debug("Waited for {} milliseconds", milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("Wait interrupted: {}", e.getMessage());
-        }
+        WaitUtils.sleepMillis(Math.max(0, milliseconds));
+        logger.debug("Waited for {} milliseconds", milliseconds);
     }
     
     // String Utilities
@@ -144,6 +134,7 @@ public class CommonUtils {
     
     /**
      * Extract price from text (supports $1,234.56 format)
+     * Enhanced to handle Amazon's dynamic pricing and different formats
      * @param priceText Text containing price
      * @return Price as double, 0.0 if not found
      */
@@ -153,54 +144,68 @@ public class CommonUtils {
         }
         
         try {
-            // Try multiple price extraction approaches
-            String cleanText = priceText.trim();
+            // Clean and normalize the text
+            String cleanText = priceText.trim()
+                .replace("\n", " ")
+                .replace("\t", " ")
+                .replaceAll("\\s+", " ");
             
-            // First try standard price pattern
-            Matcher matcher = PRICE_PATTERN.matcher(cleanText);
-            if (matcher.find()) {
-                String priceStr = matcher.group(1).replace(",", "");
-                double price = Double.parseDouble(priceStr);
-                if (price > 0) {
-                    logger.debug("Extracted price {} from text using PRICE_PATTERN: {}", price, priceText);
-                    return price;
+            logger.debug("Attempting price extraction from: '{}'", cleanText);
+            
+            // Amazon-specific price patterns (most to least specific)
+            Pattern[] pricePatterns = {
+                // Amazon price with screen reader text: "$1,299.00"
+                Pattern.compile("\\$([0-9]{1,3}(?:,[0-9]{3})*(?:\\.[0-9]{2})?)"),
+                // Amazon price without $ but with proper format: "1,299.00"
+                Pattern.compile("([0-9]{1,3}(?:,[0-9]{3})*\\.[0-9]{2})"),
+                // Amazon price whole number with commas: "1,299"
+                Pattern.compile("([0-9]{1,3}(?:,[0-9]{3})+)(?![0-9])"),
+                // Price range pattern: "$1,299 - $1,599" (take first)
+                Pattern.compile("\\$([0-9,]+(?:\\.[0-9]{2})?)\\s*[-–—]"),
+                // Amazon "from" price: "from $1,299.00"
+                Pattern.compile("from\\s+\\$([0-9,]+(?:\\.[0-9]{2})?)"),
+                // Any number that looks like a price (3+ digits)
+                Pattern.compile("([0-9,]{3,})(?:\\.[0-9]{1,2})?"),
+            };
+            
+            for (int i = 0; i < pricePatterns.length; i++) {
+                Matcher matcher = pricePatterns[i].matcher(cleanText);
+                if (matcher.find()) {
+                    String priceStr = matcher.group(1).replace(",", "");
+                    try {
+                        double price = Double.parseDouble(priceStr);
+                        // Validate price range (reasonable for MacBook Pro)
+                        if (price >= 50.0 && price <= 15000.0) {
+                            logger.debug("Extracted price {} using pattern {}: '{}'", price, i, cleanText);
+                            return price;
+                        } else if (price > 15000.0) {
+                            // Might be in cents, try dividing by 100
+                            double adjustedPrice = price / 100.0;
+                            if (adjustedPrice >= 50.0 && adjustedPrice <= 15000.0) {
+                                logger.debug("Extracted adjusted price {} (divided by 100) using pattern {}: '{}'", 
+                                    adjustedPrice, i, cleanText);
+                                return adjustedPrice;
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        logger.debug("Invalid number format in price extraction: {}", priceStr);
+                        continue;
+                    }
                 }
             }
             
-            // Try enhanced pattern without $ symbol
-            matcher = ENHANCED_PRICE_PATTERN.matcher(cleanText);
-            if (matcher.find()) {
-                String priceStr = matcher.group(1).replace(",", "");
-                double price = Double.parseDouble(priceStr);
-                if (price > 0) {
-                    logger.debug("Extracted price {} from text using ENHANCED_PRICE_PATTERN: {}", price, priceText);
-                    return price;
-                }
-            }
-            
-            // Try to find any decimal number that could be a price (greater than $10)
-            Pattern fallbackPattern = Pattern.compile("([0-9,]+\\.[0-9]{2})");
-            matcher = fallbackPattern.matcher(cleanText);
-            if (matcher.find()) {
-                String priceStr = matcher.group(1).replace(",", "");
-                double price = Double.parseDouble(priceStr);
-                if (price >= 10.0) { // Reasonable minimum price threshold
-                    logger.debug("Extracted price {} from text using fallback pattern: {}", price, priceText);
-                    return price;
-                }
-            }
-            
-            // Try to find integer prices (like 1234, 999, etc.)
-            Pattern intPattern = Pattern.compile("([0-9,]{3,})");
-            matcher = intPattern.matcher(cleanText.replaceAll("\\$", ""));
-            if (matcher.find()) {
-                String priceStr = matcher.group(1).replace(",", "");
-                if (priceStr.length() >= 3) { // At least 3 digits for reasonable price
-                    double price = Double.parseDouble(priceStr);
-                    if (price >= 100.0) { // Reasonable minimum price threshold
-                        logger.debug("Extracted price {} from text using integer pattern: {}", price, priceText);
+            // Last resort: extract any large number that could be a price
+            Pattern lastResortPattern = Pattern.compile("([0-9]+)");
+            Matcher lastMatcher = lastResortPattern.matcher(cleanText.replaceAll("[,$]", ""));
+            while (lastMatcher.find()) {
+                try {
+                    double price = Double.parseDouble(lastMatcher.group(1));
+                    if (price >= 500 && price <= 15000) {
+                        logger.debug("Extracted price {} using last resort pattern: '{}'", price, cleanText);
                         return price;
                     }
+                } catch (NumberFormatException e) {
+                    continue;
                 }
             }
             
@@ -208,7 +213,7 @@ public class CommonUtils {
             logger.debug("Failed to extract price from text '{}': {}", priceText, e.getMessage());
         }
         
-        logger.debug("No price found in text: {}", priceText);
+        logger.debug("No valid price found in text: '{}'", priceText);
         return 0.0;
     }
     

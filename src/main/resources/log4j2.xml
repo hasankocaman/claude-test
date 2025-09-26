@@ -197,7 +197,7 @@
             <AppenderRef ref="ErrorFile"/>
         </Logger>
         
-        <Logger name="utils.WebDriverFactory" level="INFO" additivity="false">
+        <Logger name="utils.DriverManager" level="INFO" additivity="false">
             <AppenderRef ref="WebDriverFile"/>
             <AppenderRef ref="Console"/>
             <AppenderRef ref="ErrorFile"/>

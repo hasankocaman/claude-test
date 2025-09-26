@@ -1,10 +1,19 @@
 package com.test.pages;
 
 import com.test.utils.CommonUtils;
+import com.test.utils.ErrorRecoveryManager;
+import com.test.utils.PerformanceMonitor;
+import com.test.utils.WaitUtils;
+import com.test.model.Product;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,14 +40,15 @@ public class SearchResultsPage extends BasePage {
     @FindBy(css = ".s-result-list")
     private WebElement resultsList;
 
-    // Product Elements (within search results)
-    @FindBy(css = "[data-component-type='s-search-result'] h2 a span")
+    // Product Elements - En geniş selector
+    @FindBy(css = "span")
     private List<WebElement> productTitles;
 
-    @FindBy(css = "[data-component-type='s-search-result'] .a-price-whole")
+    // Updated for new Amazon layout - screenshot'ta gördüğümüz fiyat yapısı
+    @FindBy(css = ".a-price-whole, .a-price .a-offscreen")
     private List<WebElement> productPrices;
 
-    @FindBy(css = "[data-component-type='s-search-result'] .a-price .a-offscreen")
+    @FindBy(css = ".a-price .a-offscreen")
     private List<WebElement> productPriceScreenReader;
 
     @FindBy(css = "[data-component-type='s-search-result'] .a-rating .a-icon-alt")
@@ -110,12 +120,54 @@ public class SearchResultsPage extends BasePage {
      * Bu sayfadaki tüm ürün başlıklarını döner.
      */
     public List<String> getProductTitles() {
+        logger.info("Extracting product titles using JavaScript method");
+        
+        try {
+            // JavaScript ile direkt DOM'dan çıkarma - daha güvenilir
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+            
+            String jsScript = "var productTitles = [];" +
+                "var allSpans = document.querySelectorAll('span');" +
+                "for (var i = 0; i < allSpans.length; i++) {" +
+                    "var span = allSpans[i];" +
+                    "var text = span.textContent || span.innerText;" +
+                    "if (text && text.trim() && text.length > 30) {" +
+                        "var lowerText = text.toLowerCase();" +
+                        "if ((lowerText.includes('macbook pro') || lowerText.includes('macbook')) && " +
+                            "(lowerText.includes('apple') || lowerText.includes('cpu') || lowerText.includes('core') || lowerText.includes('inch'))) {" +
+                            "if (!productTitles.includes(text.trim())) {" +
+                                "productTitles.push(text.trim());" +
+                            "}" +
+                        "}" +
+                    "}" +
+                "}" +
+                "return productTitles;";
+            
+            @SuppressWarnings("unchecked")
+            List<String> jsTitles = (List<String>) jsExecutor.executeScript(jsScript);
+            
+            if (jsTitles != null && !jsTitles.isEmpty()) {
+                logger.info("JavaScript extraction successful: {} titles found", jsTitles.size());
+                logger.debug("Sample JS titles: {}", jsTitles.stream().limit(3).collect(Collectors.toList()));
+                return jsTitles;
+            }
+            
+        } catch (Exception e) {
+            logger.warn("JavaScript title extraction failed: {}", e.getMessage());
+        }
+        
+        // Fallback to original method if JavaScript fails
+        logger.info("Falling back to WebElement-based extraction");
         List<String> titles = productTitles.stream()
                 .filter(this::isElementDisplayed)
                 .map(this::getText)
+                .filter(text -> text != null && !text.trim().isEmpty()) 
+                .filter(text -> text.length() > 20) // MacBook Pro başlıkları en az 20 karakter olmalı
+                .filter(text -> text.toLowerCase().contains("macbook") || text.toLowerCase().contains("mac book"))
                 .collect(Collectors.toList());
 
-        logger.debug("Retrieved {} product titles", titles.size());
+        logger.debug("WebElement extraction: {} product titles", titles.size());
+        logger.debug("Sample titles: {}", titles.stream().limit(3).collect(Collectors.toList()));
         return titles;
     }
 
@@ -123,6 +175,46 @@ public class SearchResultsPage extends BasePage {
      * Bu sayfadaki ürün fiyatlarını numerik liste olarak döner.
      */
     public List<Double> getProductPrices() {
+        logger.info("Extracting product prices using JavaScript method");
+        
+        try {
+            // JavaScript ile direkt DOM'dan fiyat çıkarma
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+            
+            String jsScript = "var productPrices = [];" +
+                "var allElements = document.querySelectorAll('*');" +
+                "for (var i = 0; i < allElements.length; i++) {" +
+                    "var element = allElements[i];" +
+                    "var text = element.textContent || element.innerText;" +
+                    "if (text && text.match && text.match(/^\\$[0-9,]+\\.[0-9]{2}$/)) {" +
+                        "var priceMatch = text.match(/\\$([0-9,]+\\.[0-9]{2})/);" +
+                        "if (priceMatch && priceMatch[1]) {" +
+                            "var priceNum = parseFloat(priceMatch[1].replace(/,/g, ''));" +
+                            "if (priceNum >= 1000) {" +
+                                "productPrices.push(priceNum);" +
+                            "}" +
+                        "}" +
+                    "}" +
+                "}" +
+                "return Array.from(new Set(productPrices)).sort(function(a, b) { return b - a; });";
+            
+            @SuppressWarnings("unchecked")
+            List<Number> jsPrices = (List<Number>) jsExecutor.executeScript(jsScript);
+            
+            if (jsPrices != null && !jsPrices.isEmpty()) {
+                List<Double> prices = jsPrices.stream()
+                    .map(Number::doubleValue)
+                    .collect(Collectors.toList());
+                logger.info("JavaScript price extraction successful: {} prices found", prices.size());
+                return prices;
+            }
+            
+        } catch (Exception e) {
+            logger.warn("JavaScript price extraction failed: {}", e.getMessage());
+        }
+        
+        // Fallback to original method
+        logger.info("Falling back to WebElement-based price extraction");
         List<Double> prices = new ArrayList<>();
 
         // Try to get prices from screen reader elements first (more reliable)
@@ -177,51 +269,66 @@ public class SearchResultsPage extends BasePage {
 
     /**
      * Geçerli sonuçlar içinde en pahalı MacBook Pro'yu bulur.
+     * Enhanced with performance monitoring and error recovery
      */
     public ProductInfo findMostExpensiveMacBookPro() {
-        logger.info("Looking for most expensive MacBook Pro");
-        logger.info("Search results found: {}", searchResults.size());
+        return PerformanceMonitor.timeOperation("findMostExpensiveMacBookPro", 
+            PerformanceMonitor.PerformanceCategory.BUSINESS_LOGIC, () -> {
+                
+            return ErrorRecoveryManager.executeWithRecovery(() -> {
+                logger.info("Looking for most expensive MacBook Pro");
+                logger.info("Search results found: {}", searchResults.size());
 
-        if (searchResults.isEmpty()) {
-            logger.error("No search results found");
-            throw new RuntimeException("No search results found. Please check if search was successful.");
-        }
-
-        List<ProductInfo> macBookProducts = new ArrayList<>();
-
-        logger.debug("Processing {} search results", searchResults.size());
-
-        for (int i = 0; i < Math.min(searchResults.size(), 20); i++) { // Limit to first 20 results for performance
-            try {
-                ProductInfo productInfo = getProductInfo(i);
-                logger.debug("Product {}: Title='{}', Price=${}", i, productInfo.getTitle(), productInfo.getPrice());
-
-                // Check if product title contains MacBook Pro (case insensitive)
-                if (CommonUtils.containsAnyKeyword(productInfo.getTitle().toLowerCase(),
-                        "macbook pro", "macbook", "mac book")) {
-                    macBookProducts.add(productInfo);
-                    logger.info("Found MacBook Pro: {} - ${}", productInfo.getTitle(), productInfo.getPrice());
+                if (searchResults.isEmpty()) {
+                    logger.error("No search results found");
+                    throw new RuntimeException("No search results found. Please check if search was successful.");
                 }
-            } catch (Exception e) {
-                logger.warn("Error processing search result {}: {}", i, e.getMessage());
-            }
-        }
 
-        if (macBookProducts.isEmpty()) {
-            logger.error("No MacBook Pro products found in {} search results", searchResults.size());
-            throw new RuntimeException("No MacBook Pro products found in search results");
-        }
+                List<ProductInfo> macBookProducts = new ArrayList<>();
 
-        // Find the most expensive one
-        ProductInfo mostExpensive = macBookProducts.stream()
-                .filter(p -> p.getPrice() > 0) // Only consider products with valid prices
-                .max(Comparator.comparing(ProductInfo::getPrice))
-                .orElse(macBookProducts.get(0)); // Fallback to first if no prices found
+                logger.debug("Processing {} search results", searchResults.size());
 
-        logger.info("Most expensive MacBook Pro found: {} - ${}",
-                mostExpensive.getTitle(), mostExpensive.getPrice());
+                for (int i = 0; i < Math.min(searchResults.size(), 20); i++) { // Limit to first 20 results for performance
+                    try {
+                        final int index = i; // Make it final for lambda
+                        ProductInfo productInfo = ErrorRecoveryManager.executeWithRecovery(
+                            () -> getProductInfo(index), 
+                            "getProductInfo_" + index, 
+                            2, 
+                            driver
+                        );
+                        
+                        logger.debug("Product {}: Title='{}', Price=${}", i, productInfo.getTitle(), productInfo.getPrice());
 
-        return mostExpensive;
+                        // Check if product title contains MacBook Pro (case insensitive)
+                        if (CommonUtils.containsAnyKeyword(productInfo.getTitle().toLowerCase(),
+                                "macbook pro", "macbook", "mac book")) {
+                            macBookProducts.add(productInfo);
+                            logger.info("Found MacBook Pro: {} - ${}", productInfo.getTitle(), productInfo.getPrice());
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Error processing search result {}: {}", i, e.getMessage());
+                    }
+                }
+
+                if (macBookProducts.isEmpty()) {
+                    logger.error("No MacBook Pro products found in {} search results", searchResults.size());
+                    throw new RuntimeException("No MacBook Pro products found in search results");
+                }
+
+                // Find the most expensive one
+                ProductInfo mostExpensive = macBookProducts.stream()
+                        .filter(p -> p.getPrice() > 0) // Only consider products with valid prices
+                        .max(Comparator.comparing(ProductInfo::getPrice))
+                        .orElse(macBookProducts.get(0)); // Fallback to first if no prices found
+
+                logger.info("Most expensive MacBook Pro found: {} - ${}",
+                        mostExpensive.getTitle(), mostExpensive.getPrice());
+
+                return mostExpensive;
+                
+            }, "findMostExpensiveMacBookPro", 3, driver);
+        });
     }
 
     /**
@@ -346,11 +453,13 @@ public class SearchResultsPage extends BasePage {
 
     private String getProductTitleFromElement(WebElement productElement) {
         try {
-            // Enhanced selector list with more variations
+            // Screenshot'tan gördüğümüz yeni Amazon layout'una göre güncellenmiş selectors
             String[] titleSelectors = {
+                    "h2 a span[class*='a-size']",  // Yeni layout - screenshot'ta gördüğümüz
                     "h2 a span",
                     "h2 a",
                     ".a-link-normal .a-size-medium",
+                    ".a-link-normal .a-text-normal", 
                     "[data-cy='title-recipe-title']",
                     ".s-title-instructions-style span",
                     ".a-size-base-plus a span",
@@ -383,44 +492,95 @@ public class SearchResultsPage extends BasePage {
 
     private double getProductPriceFromElement(WebElement productElement) {
         try {
-            // Enhanced price selectors with more variations
+            // Enhanced price selectors with Amazon's latest DOM structure
             String[] priceSelectors = {
-                    ".a-price .a-offscreen",
-                    ".a-price-whole",
-                    ".a-price .a-price-whole",
-                    ".a-price-range .a-price .a-offscreen",
-                    "[data-a-price]",
-                    ".a-size-medium.a-color-price",
-                    ".s-price .a-offscreen",
-                    ".s-price"
+                    ".a-price .a-offscreen",                    // Screen reader price text (most reliable)
+                    ".a-price-whole",                           // Whole price number
+                    ".a-price .a-price-whole",                  // Combined price selector
+                    ".a-price-range .a-price .a-offscreen",     // Price range
+                    "[data-a-price]",                           // Data attribute price
+                    ".a-size-medium.a-color-price",             // Medium size price
+                    ".s-price .a-offscreen",                    // Search price off-screen
+                    ".s-price",                                 // Search price visible
+                    ".a-color-price",                           // Generic price color
+                    "[data-testid='price']",                    // Test ID price
+                    ".a-price-symbol + .a-price-whole",         // Price after symbol
+                    ".a-text-price",                            // Text price class
+                    ".a-size-base.a-color-price"                // Base size price
             };
 
-            // Try CSS selectors first
+            // Try each selector and extract price with multiple text sources
             for (String selector : priceSelectors) {
                 try {
-                    WebElement priceElement = productElement.findElement(By.cssSelector(selector));
-                    if (priceElement != null && isElementDisplayed(priceElement)) {
-                        String priceText = getText(priceElement);
-                        if (priceText != null && !priceText.trim().isEmpty()) {
-                            logger.debug("Found price text with selector '{}': {}", selector, priceText);
+                    List<WebElement> priceElements = productElement.findElements(By.cssSelector(selector));
+                    for (WebElement priceElement : priceElements) {
+                        if (priceElement != null && isElementDisplayed(priceElement)) {
+                            // Try multiple ways to get text from element
+                            String[] textSources = {
+                                getText(priceElement),                           // Regular text
+                                getAttribute(priceElement, "aria-label"),       // Aria label
+                                getAttribute(priceElement, "data-a-price"),     // Data attribute
+                                getAttribute(priceElement, "title"),            // Title attribute
+                                getAttribute(priceElement, "textContent")       // Text content
+                            };
+                            
+                            for (String priceText : textSources) {
+                                if (priceText != null && !priceText.trim().isEmpty()) {
+                                    logger.debug("Found price text with selector '{}': {}", selector, priceText);
 
-                            double price = CommonUtils.extractPriceFromText(priceText);
+                                    double price = CommonUtils.extractPriceFromText(priceText);
+                                    if (price > 0) {
+                                        logger.debug("Extracted price: ${} from text: {} using selector: {}", 
+                                            price, priceText, selector);
+                                        return price;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Selector '{}' failed: {}", selector, e.getMessage());
+                }
+            }
+
+            // Fallback: Try to extract price from the entire product element text
+            try {
+                String entireText = getText(productElement);
+                if (entireText != null && !entireText.trim().isEmpty()) {
+                    double price = CommonUtils.extractPriceFromText(entireText);
+                    if (price > 0) {
+                        logger.debug("Extracted price ${} from entire element text", price);
+                        return price;
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Failed to extract price from entire element text: {}", e.getMessage());
+            }
+
+            // Last resort: Look for any element with dollar signs or price-like patterns
+            try {
+                List<WebElement> allElements = productElement.findElements(By.xpath(".//*[contains(text(), '$') or contains(text(), ',') or contains(@class, 'price')]"));
+                for (WebElement element : allElements) {
+                    if (isElementDisplayed(element)) {
+                        String text = getText(element);
+                        if (text != null && !text.trim().isEmpty()) {
+                            double price = CommonUtils.extractPriceFromText(text);
                             if (price > 0) {
-                                logger.debug("Extracted price: ${} from text: {}", price, priceText);
+                                logger.debug("Extracted price ${} using last resort from: {}", price, text);
                                 return price;
                             }
                         }
                     }
-                } catch (Exception ignored) {
-                    // Continue to next selector
                 }
+            } catch (Exception e) {
+                logger.debug("Last resort price extraction failed: {}", e.getMessage());
             }
 
         } catch (Exception e) {
             logger.debug("Could not extract price from product element: {}", e.getMessage());
         }
 
-        logger.debug("No valid price found for product element");
+        logger.warn("No valid price found for product element after trying all strategies");
         return 0.0;
     }
 
@@ -526,6 +686,184 @@ public class SearchResultsPage extends BasePage {
         public String toString() {
             return String.format("ProductInfo{title='%s', price=%.2f, rating='%s', reviews=%d, sponsored=%s, index=%d}",
                     title, price, rating, reviewCount, isSponsored, index);
+        }
+    }
+    public Product findMostExpensiveProduct(String productKeyword) {
+        logger.info(productKeyword + " için en pahalı ürün aranıyor");
+
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        
+        // Yeni Amazon layout için güncellendi - screenshot'ta gördüğümüz yapı
+        String[] productContainerSelectors = {
+                ".s-result-item",  // Yeni layout
+                "[data-component-type='s-search-result']",  // Eski layout fallback
+                ".a-section.a-spacing-base"  // Alternative selector
+        };
+        
+        List<WebElement> productElements = new ArrayList<>();
+        for (String selector : productContainerSelectors) {
+            try {
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(selector)));
+                productElements = driver.findElements(By.cssSelector(selector));
+                if (!productElements.isEmpty()) {
+                    logger.debug("Using product container selector: " + selector);
+                    break;
+                }
+            } catch (Exception e) {
+                logger.debug("Product container selector failed: " + selector + " - " + e.getMessage());
+            }
+        }
+
+        logger.info("Toplam " + productElements.size() + " arama sonucu bulundu");
+
+        Product mostExpensive = null;
+        double highestPrice = 0.0;
+        int validProductsFound = 0;
+
+        // İlk 20 ürünü kontrol et (performans için)
+        int maxProducts = Math.min(productElements.size(), 20);
+        for (int i = 0; i < maxProducts; i++) {
+            try {
+                WebElement productElement = productElements.get(i);
+                logger.debug("İşleniyor ürün index: " + i);
+                
+                // Debug için ürün HTML'ini logla
+                try {
+                    String productHtml = productElement.getAttribute("outerHTML");
+                    logger.debug("Ürün HTML (ilk 200 karakter): " + 
+                        (productHtml.length() > 200 ? productHtml.substring(0, 200) + "..." : productHtml));
+                } catch (Exception e) {
+                    logger.debug("HTML extract edilemedi: " + e.getMessage());
+                }
+                
+                Product product = extractProductInfo(productElement, productKeyword);
+
+                if (product != null) {
+                    validProductsFound++;
+                    logger.info("Geçerli ürün bulundu #{}: {} - ${}", validProductsFound, product.getName(), product.getPrice());
+                    
+                    if (product.getPrice() > highestPrice) {
+                        highestPrice = product.getPrice();
+                        mostExpensive = product;
+                        mostExpensive.setElementIndex(i);
+
+                        logger.info("YENİ EN YÜKSEK FİYAT: " + product.getName() + " - $" + product.getPrice());
+                    }
+                } else {
+                    logger.debug("Ürün index {} için geçerli bilgi çıkarılamadı", i);
+                }
+
+                // Her 5 üründe bir kısa mola
+                if ((i + 1) % 5 == 0) {
+                    WaitUtils.sleepMillis(1000);
+                }
+
+            } catch (Exception e) {
+                logger.warn("Ürün işleme hatası (index " + i + "): " + e.getMessage());
+            }
+        }
+
+        logger.info("Toplam {} geçerli {} ürünü bulundu", validProductsFound, productKeyword);
+
+        if (mostExpensive == null) {
+            logger.error("HİÇBİR GEÇERLİ {} ÜRÜNÜ BULUNAMADI!", productKeyword);
+            
+            // Debugging için ilk ürünün detaylı analizi
+            if (!productElements.isEmpty()) {
+                try {
+                    WebElement firstProduct = productElements.get(0);
+                    logger.error("İlk ürün debug bilgileri:");
+                    logger.error("- Element tag: " + firstProduct.getTagName());
+                    logger.error("- Element text (ilk 200 kar): " + 
+                        (firstProduct.getText().length() > 200 ? firstProduct.getText().substring(0, 200) + "..." : firstProduct.getText()));
+                    
+                    // Title çıkarma denemesi
+                    String debugTitle = getProductTitleFromElement(firstProduct);
+                    logger.error("- Çıkarılan title: " + debugTitle);
+                    
+                    // Price çıkarma denemesi
+                    double debugPrice = getProductPriceFromElement(firstProduct);
+                    logger.error("- Çıkarılan fiyat: $" + debugPrice);
+                    
+                } catch (Exception e) {
+                    logger.error("Debug bilgisi alınamadı: " + e.getMessage());
+                }
+            }
+            
+            throw new RuntimeException("Geçerli " + productKeyword + " ürünü bulunamadı");
+        }
+
+        logger.info("EN PAHALI ÜRÜN SEÇİLDİ: {} - ${}", mostExpensive.getName(), mostExpensive.getPrice());
+        return mostExpensive;
+    }
+
+    private Product extractProductInfo(WebElement productElement, String keyword) {
+        try {
+            // Enhanced title extraction with multiple strategies
+            String title = getProductTitleFromElement(productElement);
+            
+            if (title == null || title.equals("Unknown Product")) {
+                logger.debug("Could not extract valid title for product element");
+                return null;
+            }
+
+            // Anahtar kelime kontrolü - daha esnek
+            if (!CommonUtils.containsAnyKeyword(title.toLowerCase(), keyword.toLowerCase(), "macbook", "mac book")) {
+                logger.debug("Product title '{}' does not contain keyword '{}'", title, keyword);
+                return null;
+            }
+
+            // Enhanced price extraction
+            double price = getProductPriceFromElement(productElement);
+
+            if (price > 0) {
+                logger.debug("Extracted product: {} - ${}", title, price);
+                return new Product(title, price, productElement);
+            } else {
+                logger.debug("No valid price found for product: {}", title);
+            }
+
+        } catch (Exception e) {
+            logger.debug("Ürün bilgisi çıkarılamadı: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    public void navigateToProduct(Product product) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                // Ürün elementini tekrar bul (stale reference'dan kaçınmak için)
+                List<WebElement> allProducts = driver.findElements(
+                        By.cssSelector("[data-component-type='s-search-result']")
+                );
+
+                if (product.getElementIndex() < allProducts.size()) {
+                    WebElement productElement = allProducts.get(product.getElementIndex());
+                    WebElement linkElement = productElement.findElement(By.cssSelector(".a-link-normal"));
+
+                    // JavaScript ile tıkla
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", linkElement);
+
+                    // Navigasyonu bekle
+                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    wait.until(ExpectedConditions.not(
+                            ExpectedConditions.urlContains("/s?k=")
+                    ));
+
+                    logger.info("Ürün sayfasına başarıyla gidildi (deneme " + attempt + ")");
+                    return;
+                }
+
+            } catch (Exception e) {
+                logger.warn("Navigasyon denemesi " + attempt + " başarısız: " + e.getMessage());
+
+                if (attempt == 3) {
+                    throw new RuntimeException("3 denemeden sonra ürün sayfasına giidilemedi", e);
+                }
+
+                WaitUtils.sleepMillis(2000);
+            }
         }
     }
 }

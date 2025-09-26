@@ -32,22 +32,24 @@
 ## Önemli Akışlar ve Sınıflar Arası İlişkiler
 - Ana senaryo “Arama → En pahalı ürünü seç → Sepete ekle” `AmazonStepDefinitions` içindeki `findMostExpensiveProduct` çağrılı SearchResults → ProductDetail → Cart navigasyonu ile yürütülüyor (`src/test/java/stepDefinitions/AmazonStepDefinitions.java:690`, `src/main/java/com/test/pages/ProductDetailPage.java:78`, `src/main/java/com/test/pages/CartPage.java:72`).
 - Arama öncesi bot kontrolü ve çoklu locator stratejisi `HomePage.searchFor` içinde ele alınıyor (`src/main/java/com/test/pages/HomePage.java:131`).
-- Seçilen ürün bilgisinin tutulması için `SearchResultsPage.ProductInfo` ve `TestContext` tasarlanmış olsa da step tanımlarında doğrudan nesne alanları kullanılıyor (`src/main/java/com/test/pages/SearchResultsPage.java:690`, `src/main/java/com/test/core/TestContext.java:18`).
+- Seçilen ürün bilgisi `TestContext` aracılığıyla paylaşılmakta; `AmazonStepDefinitions` sepet doğrulamalarında bu veriyi yeniden kullanıyor (`src/main/java/com/test/core/TestContext.java:18`, `src/test/java/stepDefinitions/AmazonStepDefinitions.java:343`).
 - Login akışı `HomePage.clickLoginLink` + `LoginPage.loginWith` kombinasyonuyla sağlanıyor (`src/main/java/com/test/pages/HomePage.java:188`, `src/main/java/com/test/pages/LoginPage.java:52`).
 
 ## Potansiyel Riskler / Anti-Pattern’ler
-- Yoğun `Thread.sleep` kullanımı stabiliteyi etkileyebilir (`src/main/java/com/test/utils/CommonUtils.java:60`, `src/main/java/com/test/pages/SearchResultsPage.java:755`).
-- WebDriver yönetimi hem `DriverManager` hem `WebDriverFactory` ile yineleniyor; step kancaları DriverManager’ı çoklu kez başlatabiliyor (`src/main/java/com/test/utils/DriverManager.java:17`, `src/main/java/com/test/utils/WebDriverFactory.java:21`, `src/test/java/com/test/stepdefinitions/BaseStepDefinitions.java:23`, `src/test/java/stepDefinitions/Hooks.java:35`).
-- `TestRunner` glue ayarı iki hook sınıfını aynı anda çalıştırıyor; çift @Before/@After çakışması tarayıcı ömrünü karmaşıklaştırabilir (`src/test/java/com/test/runners/TestRunner.java:9`).
+- Bekleme yönetimi artık `WaitUtils.sleep*` yardımcıları üzerinden merkezileştirildi; uzun süreli beklemeler yine de performansı etkileyebileceğinden gerçek koşullarda optimizasyon devam etmeli (`src/main/java/com/test/utils/WaitUtils.java:23`).
+- WebDriver yaşam döngüsü `DriverManager` içinde parametreli hale getirildi; yine de paralel senaryolarda ek dayanıklılık kontrolleri planlanabilir (`src/main/java/com/test/utils/DriverManager.java:20`).
+- `Hooks` sınıfı kaldırıldı ve yaşam döngüsü tek yerde toplandı; `TestRunner` hâlâ iki glue paketini yüklüyor, ileride step sınıfları da tek pakette birleştirilebilir (`src/test/java/com/test/runners/TestRunner.java:9`).
 - Paralel çalıştırma Surefire tarafında açıkken DriverManager tek ThreadLocal örneğiyle Chrome’u sabit başlatıyor, farklı tarayıcılar veya thread güvenliği sınırlı (`pom.xml:132`, `src/main/java/com/test/utils/DriverManager.java:15`).
 - AmazonStepDefinitions kapsamına rağmen bazı feature adımları placeholder olarak bırakılmış (örn. marka filtresi) ve başarısız olduğunda genel RuntimeException fırlatıyor (`src/main/java/com/test/pages/SearchResultsPage.java:445`, `src/test/java/stepDefinitions/AmazonStepDefinitions.java:760`).
 
 ## İyileştirme Önerileri ve Öncelikli Yapılacaklar
-- Bekleme stratejisini `WaitUtils`/`WebDriverWait` tabanlı hale getirip `Thread.sleep` çağrılarını kaldırın veya minimize edin (`src/main/java/com/test/utils/CommonUtils.java:60`).
-- Hook sınıflarını birleştirip DriverManager başlatma/temizleme akışını tek noktadan yönetin (`src/test/java/com/test/stepdefinitions/BaseStepDefinitions.java:23`, `src/test/java/stepDefinitions/Hooks.java:25`).
-- `DriverManager` ile `WebDriverFactory`’yi konsolide edip tarayıcı seçimini `ConfigReader` üzerinden gerçek anlamda parametrik hale getirin (`src/main/java/com/test/utils/DriverManager.java:17`, `src/main/java/com/test/utils/WebDriverFactory.java:29`, `src/main/java/com/test/config/ConfigReader.java:109`).
-- `TestContext` ve `SearchResultsPage.ProductInfo` gibi hazırlanan yardımcıları step tanımlarında aktif kullanarak tekrar eden alanları sadeleştirin (`src/main/java/com/test/core/TestContext.java:18`, `src/main/java/com/test/pages/SearchResultsPage.java:690`).
 - `amazon_macbook_test.feature` içindeki kapsamlı senaryolar için eksik step implementasyonlarını tamamlayıp gereksiz senaryoları sadeleştirin (`src/test/resources/features/amazon_macbook_test.feature:17`).
+
+## Son İyileştirmeler
+- Bekleme stratejisi `WaitUtils.sleep*` yardımcıları ve `CommonUtils.waitFor*` üzerinden `Thread.sleep` bağımlılığından arındırıldı; `SearchResultsPage` ve `BotDetectionHandler` da bu mekanizmayı kullanıyor (`src/main/java/com/test/utils/CommonUtils.java:56`, `src/main/java/com/test/pages/SearchResultsPage.java:757`, `src/main/java/com/test/utils/BotDetectionHandler.java:427`).
+- WebDriver yaşam döngüsü `DriverManager` içine konsolide edildi; `WebDriverFactory` kaldırıldı ve tarayıcı seçimleri konfigürasyonla parametreleniyor (`src/main/java/com/test/utils/DriverManager.java:20`).
+- Cucumber hook’ları `BaseStepDefinitions` altında birleştirildi; senaryo süresi ve hata ekran görüntüsü yönetimi tek noktadan sağlanıyor (`src/test/java/com/test/stepdefinitions/BaseStepDefinitions.java:18`).
+- `AmazonStepDefinitions` senaryoları seçilen ürünü `TestContext` içinde saklayarak sepet doğrulamasında yeniden kullanıyor (`src/test/java/stepDefinitions/AmazonStepDefinitions.java:343`).
 
 ## Çalıştırma Adımları (IntelliJ & Komut Satırı)
 - **IntelliJ IDEA**: Projeyi Maven olarak içe aktarın, `Lifecycle > clean` ve `test` hedeflerini çalıştırın; veya `testng.xml` dosyasını sağ tıklayıp “Run” deyin (`testng.xml:15`). Gerekirse `Run/Debug Configurations` içinde VM seçeneklerine `-Dcucumber.filter.tags="@smoke"` ekleyin.

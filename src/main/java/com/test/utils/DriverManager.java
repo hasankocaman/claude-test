@@ -4,8 +4,6 @@ import com.test.config.ConfigReader;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -17,331 +15,207 @@ import org.openqa.selenium.firefox.FirefoxOptions;
 import java.time.Duration;
 
 /**
- * Thread-safe WebDriver yaşam döngüsü yöneticisi.
- * Tarayıcı oluşturma, yapılandırma, sağlık kontrolü ve gerektiğinde yeniden başlatma
- * işlevlerini merkezileştirir.
+ * Centralised WebDriver lifecycle manager.
+ * Handles browser creation based on configuration, thread-local storage and
+ * recovery on failures so parallel scenarios can reuse the same utilities.
  */
-public class DriverManager {
-    private static final ThreadLocal<WebDriver> driverThreadLocal = new ThreadLocal<>();
+public final class DriverManager {
+
     private static final Logger logger = LogManager.getLogger(DriverManager.class);
-    
+    private static final ThreadLocal<WebDriver> DRIVER = new ThreadLocal<>();
+
+    private DriverManager() {
+        // Utility class
+    }
+
     /**
-     * Konfigürasyona göre yeni bir sürücü başlatır ve thread-local içine koyar.
+     * Lazily initialise a WebDriver instance for the current thread.
      */
     public static void initializeDriver() {
-        String browserName = ConfigReader.getBrowser().toLowerCase();
-        WebDriver driver = createDriver(browserName);
-        
-        // Enhanced timeout settings for stability
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(Math.max(ConfigReader.getImplicitWait(), 20)));
-        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(Math.max(ConfigReader.getPageLoadTimeout(), 60)));
-        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
-        
-        if (ConfigReader.isWindowMaximize()) {
-            driver.manage().window().maximize();
-        }
-        
-        // Additional browser stability settings
-        if (driver instanceof ChromeDriver) {
-            logger.info("Applied extended timeout settings for Chrome driver");
-        }
-        
-        driverThreadLocal.set(driver);
-        logger.info("Driver initialized: " + browserName);
-    }
-    
-    /**
-     * İstenen tarayıcı adına göre sürücü oluşturur.
-     */
-    private static WebDriver createDriver(String browserName) {
-        switch (browserName) {
-            case "chrome":
-                return createChromeDriver();
-            case "firefox":
-                return createFirefoxDriver();
-            case "edge":
-                return createEdgeDriver();
-            default:
-                logger.error("Browser not supported: " + browserName);
-                throw new IllegalArgumentException("Browser not supported: " + browserName);
+        if (DRIVER.get() == null) {
+            DRIVER.set(createDriver(ConfigReader.getBrowserType()));
+            logger.info("WebDriver initialised for thread {} using browser {}",
+                    Thread.currentThread().getName(), ConfigReader.getBrowserType());
         }
     }
-    
+
     /**
-     * Chrome sürücüsü oluşturur ve istikrar/performans için gerekli seçenekleri uygular.
-     */
-    private static WebDriver createChromeDriver() {
-        WebDriverManager.chromedriver().setup();
-        ChromeOptions options = new ChromeOptions();
-        
-        if (ConfigReader.isHeadless()) {
-            options.addArguments("--headless");
-        }
-        
-        // Enhanced stability options for Amazon testing
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--disable-extensions");
-        options.addArguments("--disable-plugins");
-        options.addArguments("--disable-images"); // Faster loading
-        
-        // Memory and performance optimizations
-        options.addArguments("--memory-pressure-off");
-        options.addArguments("--max_old_space_size=4096");
-        options.addArguments("--disable-background-timer-throttling");
-        options.addArguments("--disable-backgrounding-occluded-windows");
-        options.addArguments("--disable-renderer-backgrounding");
-        
-        // Anti-detection measures for Amazon
-        options.addArguments("--disable-blink-features=AutomationControlled");
-        options.addArguments("--disable-features=VizDisplayCompositor");
-        options.addArguments("--disable-features=TranslateUI");
-        options.addArguments("--disable-ipc-flooding-protection");
-        options.addArguments("--disable-default-apps");
-        
-        // Use unique debugging port to avoid conflicts
-        int debuggingPort = 9222 + (int)(Math.random() * 1000);
-        options.addArguments("--remote-debugging-port=" + debuggingPort);
-        
-        // Set realistic user agent
-        options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        
-        // Set page load strategy for better stability
-        options.setPageLoadStrategy(PageLoadStrategy.NORMAL);
-        
-        // Additional preferences for stability
-        options.setExperimentalOption("useAutomationExtension", false);
-        options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
-        
-        // Window size for consistency
-        if (!ConfigReader.isHeadless()) {
-            options.addArguments("--start-maximized");
-        } else {
-            options.addArguments("--window-size=1920,1080");
-        }
-        
-        logger.info("Creating Chrome driver with headless: " + ConfigReader.isHeadless());
-        return new ChromeDriver(options);
-    }
-    
-    /**
-     * Firefox sürücüsü oluşturur.
-     */
-    private static WebDriver createFirefoxDriver() {
-        WebDriverManager.firefoxdriver().setup();
-        FirefoxOptions options = new FirefoxOptions();
-        
-        if (ConfigReader.isHeadless()) {
-            options.addArguments("--headless");
-        }
-        
-        logger.info("Creating Firefox driver with headless: " + ConfigReader.isHeadless());
-        return new FirefoxDriver(options);
-    }
-    
-    /**
-     * Edge sürücüsü oluşturur.
-     */
-    private static WebDriver createEdgeDriver() {
-        WebDriverManager.edgedriver().setup();
-        EdgeOptions options = new EdgeOptions();
-        
-        if (ConfigReader.isHeadless()) {
-            options.addArguments("--headless");
-        }
-        
-        logger.info("Creating Edge driver with headless: " + ConfigReader.isHeadless());
-        return new EdgeDriver(options);
-    }
-    
-    /**
-     * Geçerli thread için WebDriver döner.
-     * @throws IllegalStateException initialize edilmeden çağrılırsa
+     * Obtain the current thread's WebDriver, creating it if necessary.
+     *
+     * @return active WebDriver instance
      */
     public static WebDriver getDriver() {
-        WebDriver driver = driverThreadLocal.get();
-        if (driver == null) {
-            throw new IllegalStateException("WebDriver is not initialized. Call initializeDriver() first.");
+        initializeDriver();
+        return DRIVER.get();
+    }
+
+    /**
+     * Create a WebDriver based on browser name.
+     *
+     * @param browserName Browser identifier from configuration
+     * @return configured WebDriver instance
+     */
+    private static WebDriver createDriver(String browserName) {
+        String browser = browserName == null ? "chrome" : browserName.toLowerCase();
+        switch (browser) {
+            case "firefox":
+                return configureDriver(createFirefoxDriver());
+            case "edge":
+                return configureDriver(createEdgeDriver());
+            case "chrome":
+            default:
+                if (!"chrome".equals(browser)) {
+                    logger.warn("Unsupported browser '{}', defaulting to Chrome", browserName);
+                }
+                return configureDriver(createChromeDriver());
+        }
+    }
+
+    private static WebDriver configureDriver(WebDriver driver) {
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(ConfigReader.getImplicitWait()));
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(ConfigReader.getPageLoadTimeout()));
+        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(ConfigReader.getScriptTimeout()));
+
+        if (!ConfigReader.isHeadless() && ConfigReader.isWindowMaximize()) {
+            driver.manage().window().maximize();
+            logger.debug("Browser window maximised");
         }
         return driver;
     }
-    
-    /**
-     * Sürücüyü kapatır ve thread-local referansını temizler.
-     */
-    public static void quitDriver() {
-        WebDriver driver = driverThreadLocal.get();
-        if (driver != null) {
-            driver.quit();
-            driverThreadLocal.remove();
-            logger.info("Driver quit successfully");
+
+    private static WebDriver createChromeDriver() {
+        WebDriverManager.chromedriver().setup();
+        ChromeOptions options = new ChromeOptions();
+
+        options.addArguments(
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--disable-web-security",
+                "--allow-running-insecure-content",
+                "--disable-background-timer-throttling",
+                "--disable-background-networking",
+                "--disable-background-timers",
+                "--disable-client-side-phishing-detection",
+                "--disable-notifications",
+                "--disable-popup-blocking"
+        );
+
+        if (ConfigReader.isHeadless()) {
+            options.addArguments("--headless=new", "--disable-logging", "--log-level=3", "--window-size=1920,1080");
+            logger.info("Chrome will run in headless mode");
         }
+
+        return new ChromeDriver(options);
     }
-    
+
+    private static WebDriver createFirefoxDriver() {
+        WebDriverManager.firefoxdriver().setup();
+        FirefoxOptions options = new FirefoxOptions();
+
+        options.addArguments("--no-sandbox", "--disable-dev-shm-usage");
+        options.addPreference("dom.webnotifications.enabled", false);
+        options.addPreference("dom.push.enabled", false);
+        options.addPreference("network.http.pipelining", true);
+        options.addPreference("network.http.proxy.pipelining", true);
+        options.addPreference("network.http.pipelining.maxrequests", 10);
+        options.addPreference("nglayout.initialpaint.delay", 0);
+
+        if (ConfigReader.isHeadless()) {
+            options.addArguments("--headless");
+            logger.info("Firefox will run in headless mode");
+        }
+
+        return new FirefoxDriver(options);
+    }
+
+    private static WebDriver createEdgeDriver() {
+        WebDriverManager.edgedriver().setup();
+        EdgeOptions options = new EdgeOptions();
+
+        options.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--disable-extensions", "--disable-gpu");
+        options.addArguments("--disable-notifications", "--disable-popup-blocking");
+
+        if (ConfigReader.isHeadless()) {
+            options.addArguments("--headless", "--window-size=1920,1080");
+            logger.info("Edge will run in headless mode");
+        }
+
+        return new EdgeDriver(options);
+    }
+
     /**
-     * Check if driver is initialized
-     * @return true if driver exists
-     */
-    /**
-     * Mevcut thread'de sürücü olup olmadığını belirtir.
+     * Check if there is an active driver.
      */
     public static boolean hasDriver() {
-        return driverThreadLocal.get() != null;
+        return DRIVER.get() != null;
     }
-    
+
     /**
-     * Check if browser is still responsive
-     * @return true if browser is healthy
-     */
-    /**
-     * Temel bir sağlık kontrolü uygular: sessionId, URL ve JS yürütme testi.
+     * Determine if current driver session responds to commands.
      */
     public static boolean isBrowserHealthy() {
+        WebDriver driver = DRIVER.get();
+        return driver != null && isDriverHealthy(driver);
+    }
+
+    private static boolean isDriverHealthy(WebDriver driver) {
         try {
-            WebDriver driver = driverThreadLocal.get();
-            if (driver == null) {
-                return false;
-            }
-            
-            // Multiple health checks for better reliability
-            
-            // 1. Check if session ID is valid
-            String sessionId = ((ChromeDriver) driver).getSessionId().toString();
-            if (sessionId == null || sessionId.isEmpty()) {
-                logger.warn("Browser session ID is invalid");
-                return false;
-            }
-            
-            // 2. Try to get current URL to check if browser is responsive
-            String currentUrl = driver.getCurrentUrl();
-            if (currentUrl == null) {
-                logger.warn("Browser returned null URL");
-                return false;
-            }
-            
-            // 3. Try a simple JavaScript execution
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-            Object result = js.executeScript("return document.readyState");
-            if (result == null) {
-                logger.warn("Browser JavaScript execution failed");
-                return false;
-            }
-            
-            logger.debug("Browser health check passed. Session: {}, URL: {}, ReadyState: {}", 
-                        sessionId.substring(0, 8) + "...", currentUrl, result);
+            driver.getTitle();
             return true;
-            
         } catch (Exception e) {
-            logger.warn("Browser health check failed: {}", e.getMessage());
+            logger.warn("Driver health check failed: {}", e.getMessage());
             return false;
         }
     }
-    
+
     /**
-     * Restart browser if it's not healthy
-     * @return true if browser was restarted successfully
+     * Quit the active driver and clean up thread local storage.
      */
-    /**
-     * Tarayıcı sağlıksız ise yeniden başlatmayı dener.
-     */
-    public static boolean restartBrowserIfNeeded() {
-        if (!isBrowserHealthy()) {
-            logger.warn("Browser is not healthy, attempting to restart...");
-            return forceRestartBrowser();
-        }
-        return true;
-    }
-    
-    /**
-     * Force restart browser regardless of health status
-     * @return true if browser was restarted successfully
-     */
-    /**
-     * Tarayıcıyı zorla yeniden başlatır (kapat-aç) ve sağlık doğrulaması yapar.
-     */
-    public static boolean forceRestartBrowser() {
-        try {
-            logger.info("Forcing browser restart...");
-            
-            // Try graceful shutdown first
+    public static void quitDriver() {
+        WebDriver driver = DRIVER.get();
+        if (driver != null) {
             try {
-                quitDriver();
+                driver.quit();
             } catch (Exception e) {
-                logger.warn("Graceful driver quit failed, continuing with restart: {}", e.getMessage());
+                logger.warn("Error while quitting WebDriver: {}", e.getMessage());
+            } finally {
+                DRIVER.remove();
             }
-            
-            // Clear the thread local
-            driverThreadLocal.remove();
-            
-            // Wait a moment for cleanup
-            Thread.sleep(1000);
-            
-            // Initialize new driver
-            initializeDriver();
-            
-            // Verify new driver is healthy
-            if (isBrowserHealthy()) {
-                logger.info("Browser restarted successfully");
-                return true;
-            } else {
-                logger.error("Browser restart failed - new instance is not healthy");
-                return false;
-            }
-            
-        } catch (Exception e) {
-            logger.error("Failed to restart browser: {}", e.getMessage());
-            return false;
         }
     }
-    
+
     /**
-     * Attempt to recover from session issues
-     * @return true if recovery was successful
-     */
-    /**
-     * Oturum problemlerinden toparlanmak için çeşitli stratejiler uygular.
+     * Attempt to recover the browser session by restarting the driver.
      */
     public static boolean recoverSession() {
-        logger.info("Attempting session recovery...");
-        
-        // Try different recovery strategies
-        
-        // Strategy 1: Simple refresh and health check
         try {
-            WebDriver driver = driverThreadLocal.get();
-            if (driver != null) {
-                driver.navigate().refresh();
-                Thread.sleep(2000);
-                if (isBrowserHealthy()) {
-                    logger.info("Session recovered with refresh");
-                    return true;
-                }
-            }
+            quitDriver();
+            initializeDriver();
+            return hasDriver();
         } catch (Exception e) {
-            logger.debug("Refresh recovery failed: {}", e.getMessage());
+            logger.error("Session recovery failed: {}", e.getMessage(), e);
+            return false;
         }
-        
-        // Strategy 2: Navigate back to a known good page
-        try {
-            WebDriver driver = driverThreadLocal.get();
-            if (driver != null) {
-                driver.navigate().to("about:blank");
-                Thread.sleep(1000);
-                if (isBrowserHealthy()) {
-                    logger.info("Session recovered with navigation to blank");
-                    return true;
-                }
-            }
-        } catch (Exception e) {
-            logger.debug("Navigation recovery failed: {}", e.getMessage());
-        }
-        
-        // Strategy 3: Force restart as last resort
-        logger.warn("All recovery strategies failed, forcing browser restart");
-        forceRestartBrowser();
-        return true;
     }
-    
 
+    /**
+     * Restart the browser when the current session is not healthy.
+     */
+    public static void restartBrowserIfNeeded() {
+        if (!isBrowserHealthy()) {
+            logger.info("Browser deemed unhealthy, restarting session");
+            recoverSession();
+        }
+    }
+
+    /**
+     * Force a browser restart regardless of current health.
+     */
+    public static void forceRestartBrowser() {
+        logger.info("Force restarting browser session");
+        quitDriver();
+        initializeDriver();
+    }
 }

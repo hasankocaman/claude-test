@@ -1,6 +1,8 @@
 package stepDefinitions;
 
 
+import com.test.core.TestContext;
+import com.test.model.Product;
 import com.test.pages.CartPage;
 import com.test.pages.HomePage;
 import com.test.pages.ProductDetailPage;
@@ -14,9 +16,13 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
-
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -33,9 +39,6 @@ public class AmazonStepDefinitions {
     private SearchResultsPage searchResultsPage;
     private ProductDetailPage productDetailPage;
     private CartPage cartPage;
-    
-    // Test data storage
-    private SearchResultsPage.ProductInfo selectedProduct;
     private String searchTerm;
     private long searchStartTime;
     private long productLoadStartTime;
@@ -286,72 +289,41 @@ public class AmazonStepDefinitions {
      */
     @When("I select the highest priced MacBook Pro")
     public void i_select_the_highest_priced_macbook_pro() {
-        performStepSafely("Selecting highest priced MacBook Pro", () -> {
-            Assert.assertNotNull(searchResultsPage, "Search results must be available");
-            
-            // Browser health check before critical operation
-            if (!DriverManager.isBrowserHealthy()) {
-                logger.warn("Browser health check failed before selecting MacBook Pro, restarting...");
-                DriverManager.restartBrowserIfNeeded();
-            }
-            
-            // Find and store the most expensive MacBook Pro with retry logic
-            int maxRetries = 3;
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    logger.info("Attempting to find most expensive MacBook Pro (attempt {}/{})", attempt, maxRetries);
-                    selectedProduct = searchResultsPage.findMostExpensiveMacBookPro();
-                    
-                    if (selectedProduct != null) {
-                        logger.info("Found most expensive MacBook Pro: {} - ${}", 
-                                selectedProduct.getTitle(), selectedProduct.getPrice());
-                        break;
-                    } else if (attempt == maxRetries) {
-                        throw new RuntimeException("Could not find any MacBook Pro products after " + maxRetries + " attempts");
-                    }
-                    
-                } catch (Exception e) {
-                    logger.warn("Find attempt {} failed: {}", attempt, e.getMessage());
-                    if (attempt < maxRetries) {
-                        CommonUtils.waitFor(2);
-                        // Check browser health before retry
-                        if (!DriverManager.isBrowserHealthy()) {
-                            logger.warn("Browser unhealthy before retry, restarting...");
-                            DriverManager.restartBrowserIfNeeded();
-                        }
-                    } else {
-                        throw new RuntimeException("Failed to find MacBook Pro after " + maxRetries + " attempts: " + e.getMessage());
-                    }
-                }
-            }
-            
-            Assert.assertNotNull(selectedProduct, "No MacBook Pro found in search results");
-            
-            // Click on the selected product with retry logic
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    logger.info("Attempting to click on selected MacBook Pro (attempt {}/{})", attempt, maxRetries);
-                    productDetailPage = searchResultsPage.clickOnProduct(selectedProduct.getIndex());
-                    
-                    if (productDetailPage != null) {
-                        logger.info("Successfully navigated to product detail page");
-                        break;
-                    } else if (attempt == maxRetries) {
-                        throw new RuntimeException("Could not navigate to product detail page after " + maxRetries + " attempts");
-                    }
-                    
-                } catch (Exception e) {
-                    logger.warn("Click attempt {} failed: {}", attempt, e.getMessage());
-                    if (attempt < maxRetries) {
-                        CommonUtils.waitFor(2);
-                        if (!DriverManager.isBrowserHealthy()) {
-                            logger.warn("Browser unhealthy during click retry, restarting...");
-                            DriverManager.restartBrowserIfNeeded();
-                        }
-                    } else {
-                        throw new RuntimeException("Failed to click on MacBook Pro after " + maxRetries + " attempts: " + e.getMessage());
-                    }
-                }
+        performStepSafely("En pahalı MacBook Pro seçiliyor", () -> {
+            WebDriver driver = DriverManager.getDriver();
+
+            try {
+                // Önce findMostExpensiveMacBookPro metodunu dene
+                logger.info("FindMostExpensiveMacBookPro metodunu deneyeceğiz...");
+                SearchResultsPage.ProductInfo mostExpensive = searchResultsPage.findMostExpensiveMacBookPro();
+                
+                logger.info("En pahalı MacBook Pro bulundu: " + mostExpensive.getTitle() + " - $" + mostExpensive.getPrice());
+                
+                // ProductDetailPage'e git
+                productDetailPage = searchResultsPage.clickOnProduct(mostExpensive.getIndex());
+                
+                logger.info("✓ Ürün detay sayfasına başarıyla ulaşıldı");
+                
+            } catch (Exception e) {
+                logger.warn("FindMostExpensiveMacBookPro başarısız oldu, alternatif metodu deneyeceğiz: " + e.getMessage());
+                
+                // Alternatif metod
+                Product mostExpensive = searchResultsPage.findMostExpensiveProduct("MacBook Pro");
+
+                logger.info("En pahalı MacBook Pro bulundu: " + mostExpensive.getName() + " - $" + mostExpensive.getPrice());
+
+                // Ürün sayfasına git
+                searchResultsPage.navigateToProduct(mostExpensive);
+
+                // Ürün detay sayfasında olduğumuzu doğrula
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                wait.until(ExpectedConditions.or(
+                        ExpectedConditions.presenceOfElementLocated(By.id("add-to-cart-button")),
+                        ExpectedConditions.presenceOfElementLocated(By.name("submit.add-to-cart")),
+                        ExpectedConditions.presenceOfElementLocated(By.cssSelector("[data-testid='add-to-cart-button']"))
+                ));
+
+                logger.info("✓ Ürün detay sayfasına başarıyla ulaşıldı");
             }
         });
     }
@@ -366,7 +338,8 @@ public class AmazonStepDefinitions {
         Assert.assertNotNull(searchResultsPage, "Search results must be available");
         
         // Get first MacBook Pro and click on it
-        selectedProduct = searchResultsPage.findMostExpensiveMacBookPro(); // Gets first valid MacBook Pro
+        SearchResultsPage.ProductInfo selectedProduct = searchResultsPage.findMostExpensiveMacBookPro();
+        TestContext.setSelectedProduct(selectedProduct);
         productDetailPage = searchResultsPage.clickOnProduct(selectedProduct.getIndex());
         
         // Add to cart
@@ -645,6 +618,7 @@ public class AmazonStepDefinitions {
     public void the_product_should_be_the_macbook_pro_i_selected() {
         logger.info("STEP: Verifying correct MacBook Pro was added to cart");
         
+        SearchResultsPage.ProductInfo selectedProduct = TestContext.getSelectedProduct();
         Assert.assertNotNull(selectedProduct, "Selected product information should be available");
         Assert.assertNotNull(cartPage, "Cart page should be loaded");
         
@@ -658,7 +632,15 @@ public class AmazonStepDefinitions {
                 "Cart item should be a MacBook Pro product"
         );
         
-        logger.info("✓ Correct MacBook Pro verified in cart: {}", cartItem.getTitle());
+        double priceDifference = Math.abs(cartItem.getPrice() - selectedProduct.getPrice());
+        if (selectedProduct.getPrice() > 0 && cartItem.getPrice() > 0) {
+            Assert.assertTrue(priceDifference <= Math.max(5.0, selectedProduct.getPrice() * 0.05),
+                    String.format("Cart price %.2f should be close to selected price %.2f",
+                            cartItem.getPrice(), selectedProduct.getPrice()));
+        }
+
+        logger.info("✓ Correct MacBook Pro verified in cart: {} (selected price: ${}, cart price: ${})",
+                cartItem.getTitle(), selectedProduct.getPrice(), cartItem.getPrice());
     }
     
     /**
